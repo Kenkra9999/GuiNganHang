@@ -38,6 +38,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- Canvas Confetti CDN -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <!-- 1) Universal SDK Central Payment Gateway Hub -->
+    <script src="http://localhost:9000/payment-sdk.js"></script>
+    <script src="js/payment-sdk.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -45,8 +48,8 @@
 
     <!-- TOP ANNOUNCEMENT BANNER -->
     <div class="bg-gradient-to-r from-amber-600 via-emerald-600 to-indigo-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-md">
-        <span class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] uppercase tracking-wider font-bold">Chuẩn STK 12 Ký Tự</span>
-        <span>🌐 Hệ thống Chuyển Tiền Liên Website & Tiết Kiệm Siêu Tốc <strong class="text-amber-300">0.70% - 1.20%/phút</strong> kết nối qua Core Wallet & Socket.io Realtime!</span>
+        <span class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] uppercase tracking-wider font-bold">Nạp/Rút VietQR 24/7</span>
+        <span>⚡ Đã tích hợp Cổng Thanh Toán Trung Tâm (Central Hub) - Nạp VietQR EMVCo & Rút Tiền Napas 24/7 Tức Thì!</span>
     </div>
 
     <!-- MAIN HEADER -->
@@ -64,7 +67,7 @@
                         <span class="text-xl font-extrabold tracking-tight text-white font-mono">DIGI<span class="text-emerald-400">BANK</span></span>
                         <span class="px-2 py-0.5 text-[10px] font-black rounded-md bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 uppercase">Prime 4.0</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 font-medium">Hệ Thống Tiết Kiệm & Chuyển Tiền Liên Web Realtime</p>
+                    <p class="text-[11px] text-slate-400 font-medium">Hệ Thống Tiết Kiệm & Nạp Rút VietQR 24/7</p>
                 </div>
             </div>
 
@@ -73,14 +76,14 @@
                 <!-- Socket Connection Indicator -->
                 <div id="socketStatusBadge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                    <span id="socketStatusText">Socket.io: Đang kết nối...</span>
+                    <span id="socketStatusText">Socket.io: Online</span>
                 </div>
                 <span class="text-slate-600">|</span>
                 <div id="liveClock" class="font-medium text-slate-300"></div>
             </div>
 
             <!-- User Info & Quick Actions -->
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 sm:gap-3">
                 <!-- Reset Data Button -->
                 <button onclick="app.resetAllData()" title="Đặt lại dữ liệu mặc định (100 triệu)" class="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-red-400 transition">
                     <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
@@ -91,20 +94,28 @@
                     <i id="soundToggleIcon" data-lucide="volume-2" class="w-5 h-5 text-amber-400"></i>
                 </button>
 
-                <!-- Nạp Tiền Demo Button -->
-                <button onclick="app.openTopupModal()" class="hidden sm:flex items-center gap-2 py-2 px-3.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                    <span>Nạp Tiền Demo</span>
+                <!-- NẠP TIỀN VIETQR 24/7 BUTTON (CENTRAL HUB SDK) -->
+                <button onclick="app.openDepositModalPrompt()" class="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/40 transition">
+                    <i data-lucide="qr-code" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Nạp VietQR</span>
+                    <span class="sm:hidden">Nạp</span>
+                </button>
+
+                <!-- RÚT TIỀN NGÂN HÀNG 24/7 BUTTON (NAPAS 247) -->
+                <button onclick="app.openWithdrawModal()" class="flex items-center gap-2 py-2 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-amber-400 font-bold text-xs transition">
+                    <i data-lucide="arrow-up-right" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Rút Tiền</span>
+                    <span class="sm:hidden">Rút</span>
                 </button>
 
                 <!-- User Profile Badge (Standard 12-char STK) -->
-                <div class="flex items-center gap-3 pl-2 border-l border-slate-800">
+                <div class="hidden lg:flex items-center gap-3 pl-2 border-l border-slate-800">
                     <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shadow-md">
                         <div class="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-sm">
                             NV
                         </div>
                     </div>
-                    <div class="hidden lg:block text-left">
+                    <div class="text-left">
                         <div class="text-xs font-bold text-white flex items-center gap-1.5">
                             <span>NGUYEN VAN A</span>
                             <span class="px-1.5 py-0.2 rounded text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold">W03</span>
@@ -164,7 +175,7 @@
                 </div>
                 <div class="text-2xl font-black text-white font-mono val-available-balance tracking-tight">100.000.000 đ</div>
                 <div class="mt-2 text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
-                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Sẵn sàng chuyển liên web & gửi tiết kiệm
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Sẵn sàng chuyển liên web & rút về ngân hàng
                 </div>
             </div>
 
@@ -259,7 +270,7 @@
                         <div class="text-right">
                             <div class="text-[10px] text-slate-500 uppercase font-semibold">Hệ Thống Kết Nối</div>
                             <div class="font-mono font-bold text-emerald-400 flex items-center gap-1 justify-end">
-                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Socket.io Realtime
+                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Central Hub Realtime
                             </div>
                         </div>
                     </div>
@@ -272,47 +283,52 @@
                             <div>
                                 <h3 class="text-lg font-bold text-white flex items-center gap-2">
                                     <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i>
-                                    Thao Tác Nhanh & Chuyển Tiền Liên Website
+                                    Trung Tâm Nạp/Rút & Chuyển Tiền 24/7
                                 </h3>
-                                <p class="text-xs text-slate-400">Chuyển tiền tức thì theo quy chuẩn STK 12 ký tự qua Core Wallet & Socket.io</p>
+                                <p class="text-xs text-slate-400">Tích hợp Cổng Thanh Toán Trung Tâm VietQR EMVCo & Tra cứu Napas 24/7</p>
                             </div>
-                            <button onclick="app.openTopupModal()" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 transition flex items-center gap-1.5">
-                                <i data-lucide="wallet-cards" class="w-4 h-4"></i> Nạp Tiền
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="app.openDepositModalPrompt()" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 text-xs font-bold border border-emerald-500/40 transition flex items-center gap-1.5">
+                                    <i data-lucide="qr-code" class="w-4 h-4"></i> Nạp VietQR
+                                </button>
+                                <button onclick="app.openWithdrawModal()" class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 text-xs font-bold border border-amber-500/40 transition flex items-center gap-1.5">
+                                    <i data-lucide="arrow-up-right" class="w-4 h-4"></i> Rút Tiền
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Quick Shortcut Buttons -->
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                            <button onclick="app.switchTab('transfer')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 text-left transition group">
+                            <button onclick="app.openDepositModalPrompt()" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 text-left transition group">
                                 <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="qr-code" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-xs font-bold text-white">Nạp VietQR 24/7</div>
+                                <div class="text-[10px] text-emerald-400">Tự động duyệt 3s</div>
+                            </button>
+
+                            <button onclick="app.openWithdrawModal()" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-xs font-bold text-white">Rút Tiền Napas</div>
+                                <div class="text-[10px] text-amber-400">Xác thực tên thật</div>
+                            </button>
+
+                            <button onclick="app.switchTab('transfer')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                                     <i data-lucide="send" class="w-5 h-5"></i>
                                 </div>
                                 <div class="text-xs font-bold text-white">Chuyển Liên Web</div>
-                                <div class="text-[10px] text-emerald-400">Chuẩn STK 12 ký tự</div>
+                                <div class="text-[10px] text-blue-400">STK 12 ký tự</div>
                             </button>
 
-                            <button onclick="app.switchTab('savings')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/40 text-left transition group">
-                                <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                            <button onclick="app.switchTab('savings')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                                     <i data-lucide="piggy-bank" class="w-5 h-5"></i>
                                 </div>
                                 <div class="text-xs font-bold text-white">Gửi Tiết Kiệm</div>
-                                <div class="text-[10px] text-slate-400">Lãi 1.2%/phút</div>
-                            </button>
-
-                            <button onclick="app.withdrawAllDeposits()" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 text-left transition group">
-                                <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                                    <i data-lucide="download" class="w-5 h-5"></i>
-                                </div>
-                                <div class="text-xs font-bold text-white">Rút Tất Cả Sổ</div>
-                                <div class="text-[10px] text-slate-400">Gốc + Lãi về ví</div>
-                            </button>
-
-                            <button onclick="app.switchTab('history')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 text-left transition group">
-                                <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
-                                    <i data-lucide="history" class="w-5 h-5"></i>
-                                </div>
-                                <div class="text-xs font-bold text-white">Lịch Sử Ví</div>
-                                <div class="text-[10px] text-slate-400">Biến động số dư</div>
+                                <div class="text-[10px] text-purple-400">Lãi 1.2%/phút</div>
                             </button>
                         </div>
                     </div>
@@ -412,9 +428,7 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- ========================================================= -->
-                <!-- FORM 1: CHUYỂN TIỀN LIÊN WEBSITE (CORE WALLET ECOSYSTEM) -->
-                <!-- ========================================================= -->
+                <!-- FORM 1: CHUYỂN TIỀN LIÊN WEBSITE -->
                 <div id="crossWebTransferSection" class="lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-emerald-500/40 shadow-2xl relative overflow-hidden">
                     <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
                         <div>
@@ -458,7 +472,6 @@
 
                     <!-- Cross-Web Form -->
                     <form onsubmit="event.preventDefault(); app.executeCrossWebTransfer();" class="space-y-4">
-                        <!-- Input Số Tài Khoản (Đúng 12 ký tự quy chuẩn) -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -476,9 +489,9 @@
                             </div>
                         </div>
 
-                        <!-- HỘP THÔNG TIN NGƯỜI NHẬN SAU KHI TRA CỨU API (MÀU XANH LÁ HOẶC BÁO ĐỎ) -->
+                        <!-- HỘP THÔNG TIN NGƯỜI NHẬN SAU KHI TRA CỨU API -->
                         <div id="lookupResultContainer" class="hidden">
-                            <!-- Injected dynamically via JS: Green Success or Red Error -->
+                            <!-- Injected dynamically via JS -->
                         </div>
 
                         <!-- Số Tiền Chuyển -->
@@ -516,9 +529,7 @@
                     </form>
                 </div>
 
-                <!-- ========================================================= -->
-                <!-- FORM 2: CHUYỂN KHOẢN 20 NGÂN HÀNG NAPAS 24/7 (CŨ) -->
-                <!-- ========================================================= -->
+                <!-- FORM 2: CHUYỂN KHOẢN 20 NGÂN HÀNG NAPAS 24/7 -->
                 <div id="napasTransferSection" class="hidden lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-slate-700/80">
                     <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
                         <div>
@@ -570,9 +581,7 @@
                     </form>
                 </div>
 
-                <!-- ========================================================= -->
                 <!-- SIDEBAR: REALTIME SOCKET.IO TESTER & SIMULATOR -->
-                <!-- ========================================================= -->
                 <div class="space-y-6">
                     <!-- Realtime Socket.io Simulator Widget -->
                     <div class="glass-panel rounded-3xl p-6 border-amber-500/40 bg-gradient-to-b from-amber-950/20 to-slate-900/80 shadow-xl">
@@ -617,28 +626,24 @@
                         </div>
                     </div>
 
-                    <!-- Rule & Specs Summary Card -->
+                    <!-- Payment Gateway Hub Specs Badge -->
                     <div class="glass-panel rounded-3xl p-6 border-slate-700/80">
                         <h4 class="font-bold text-white text-sm mb-3 flex items-center gap-2">
                             <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
-                            Quy Chuẩn Kỹ Thuật Đã Tích Hợp
+                            Cổng Thanh Toán Trung Tâm (Hub)
                         </h4>
                         <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
                             <li class="flex items-start gap-2">
                                 <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
-                                <span><strong>STK 12 ký tự</strong>: [3 ký tự mã Web][9 chữ số].</span>
+                                <span><strong>VietQR EMVCo</strong>: Động 100%, bộ đếm 15 phút.</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
-                                <span><strong>API Tra Cứu (2.1)</strong>: Tự động gọi khi đủ 12 ký tự.</span>
+                                <span><strong>Napas 24/7 Lookup</strong>: Tự tra cứu tên chủ tài khoản thật.</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
-                                <span><strong>Idempotency & Row Locking (2.2)</strong>: Khóa giao dịch, chống trừ tiền 2 lần.</span>
-                            </li>
-                            <li class="flex items-start gap-2">
-                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
-                                <span><strong>Socket.io (3.1)</strong>: Lắng nghe <code>EVENT_MONEY_RECEIVED</code> & <code>EVENT_MONEY_DEDUCTED</code>.</span>
+                                <span><strong>Payout Realtime</strong>: Rút tiền trực tiếp không cần F5 trang.</span>
                             </li>
                         </ul>
                     </div>
@@ -650,7 +655,6 @@
         <!-- TAB 3: SAVINGS CENTER (20 NGÂN HÀNG & LÃI SUẤT REALTIME) -->
         <!-- ================================================================================= -->
         <div id="view-savings" class="tab-view-container hidden space-y-6">
-            <!-- Header Thông Tin Tiết Kiệm -->
             <div class="glass-panel rounded-3xl p-6 border-slate-700/80 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-900/90">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
@@ -684,7 +688,6 @@
                     </div>
                 </div>
 
-                <!-- Table Active Deposits -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -715,7 +718,6 @@
                         <p class="text-xs text-slate-400">Chọn ngân hàng có lãi suất cao nhất để tối đa hóa dòng tiền sinh lời</p>
                     </div>
 
-                    <!-- Search & Filter Controls -->
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="relative">
                             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
@@ -731,7 +733,6 @@
                     </div>
                 </div>
 
-                <!-- 20 Banks Grid Container -->
                 <div id="banksGridContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <!-- Injected dynamically by app.js (20 banks) -->
                 </div>
@@ -801,22 +802,20 @@
                             <i data-lucide="history" class="w-6 h-6 text-purple-400"></i>
                             Lịch Sử Biến Động Số Dư & Giao Dịch
                         </h2>
-                        <p class="text-xs text-slate-400">Theo dõi toàn bộ lịch sử chuyển tiền liên website, nhận tiền realtime, gửi tiết kiệm & nhận lãi</p>
+                        <p class="text-xs text-slate-400">Theo dõi toàn bộ lịch sử nạp VietQR, rút tiền Napas, chuyển tiền liên web & nhận lãi</p>
                     </div>
 
-                    <!-- Filter buttons -->
                     <div class="flex flex-wrap items-center gap-2">
                         <input id="txSearchInput" type="text" placeholder="Tìm giao dịch..." class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500 w-40">
                         <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
                             <button data-tx-filter="ALL" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold transition">Tất Cả</button>
-                            <button data-tx-filter="TRANSFER" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Chuyển/Nhận Tiền</button>
+                            <button data-tx-filter="TRANSFER" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Chuyển/Nhận/Rút</button>
                             <button data-tx-filter="SAVINGS" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Tiết Kiệm & Lãi</button>
-                            <button data-tx-filter="TOPUP" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Nạp Tiền</button>
+                            <button data-tx-filter="TOPUP" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Nạp Tiền VietQR</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Table Transactions -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -842,8 +841,280 @@
     </main>
 
     <!-- ================================================================================= -->
-    <!-- MODAL 1: MỞ SỔ TIẾT KIỆM & MÁY TÍNH LÃI SUẤT DỰ KIẾN -->
+    <!-- MODAL: NẠP TIỀN VIETQR 24/7 (CHỌN MỆNH GIÁ TRƯỚC KHI MỞ VIETQR SDK) -->
     <!-- ================================================================================= -->
+    <div id="depositPromptModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-md w-full border border-emerald-500/50 shadow-2xl relative">
+            <button onclick="app.closeDepositPromptModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center font-bold">
+                    <i data-lucide="qr-code" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-white">Nạp Tiền VietQR Realtime 24/7</h3>
+                    <p class="text-xs text-slate-400">Tạo mã QR động EMVCo tự động duyệt tiền</p>
+                </div>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="grid grid-cols-2 gap-2.5 mb-4">
+                <button type="button" onclick="app.setDepositPromptAmount(100000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-[10px] text-slate-400">Mức nạp</div>
+                    <div class="text-base font-black text-emerald-400 font-mono">100.000 đ</div>
+                </button>
+                <button type="button" onclick="app.setDepositPromptAmount(500000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-[10px] text-slate-400">Mức nạp</div>
+                    <div class="text-base font-black text-emerald-400 font-mono">500.000 đ</div>
+                </button>
+                <button type="button" onclick="app.setDepositPromptAmount(2000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-[10px] text-slate-400">Phổ biến</div>
+                    <div class="text-base font-black text-emerald-400 font-mono">2.000.000 đ</div>
+                </button>
+                <button type="button" onclick="app.setDepositPromptAmount(10000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-[10px] text-slate-400">Mức VIP</div>
+                    <div class="text-base font-black text-amber-400 font-mono">10.000.000 đ</div>
+                </button>
+            </div>
+
+            <!-- Custom Amount Input -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Hoặc nhập số tiền tùy chọn (VNĐ):</label>
+                <input id="depositPromptCustomInput" type="text" placeholder="Nhập số tiền (vd: 500000)" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-base font-bold focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <!-- Submit Button -> Opens PaymentSDK Modal -->
+            <button onclick="app.confirmOpenDepositSdk()" class="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-base shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-2 transition transform active:scale-95">
+                <i data-lucide="qr-code" class="w-5 h-5"></i>
+                Tạo Mã VietQR Nạp Tiền Ngay
+            </button>
+        </div>
+    </div>
+
+    <!-- ================================================================================= -->
+    <!-- MODAL: RÚT TIỀN NGÂN HÀNG VIỆT NAM 24/7 (NAPAS 247 LOOKUP & PAYOUT) -->
+    <!-- ================================================================================= -->
+    <div id="withdrawBankModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-amber-500/50 shadow-2xl relative">
+            <button onclick="app.closeWithdrawModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Header -->
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold">
+                    <i data-lucide="arrow-up-right" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase tracking-wider">
+                        NAPAS 24/7 PAYOUT
+                    </span>
+                    <h3 class="text-lg font-black text-white mt-0.5">Rút Tiền Về Ngân Hàng Việt Nam 24/7</h3>
+                    <p class="text-xs text-slate-400">Tự động tra cứu tên chủ tài khoản thật & chuyển tiền tức thì</p>
+                </div>
+            </div>
+
+            <!-- Available Balance Hint -->
+            <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 mb-4 flex items-center justify-between text-xs">
+                <span class="text-slate-400">Số dư khả dụng có thể rút:</span>
+                <span class="font-mono font-black text-emerald-400 text-sm val-available-balance">100.000.000 đ</span>
+            </div>
+
+            <!-- Form Rút Tiền -->
+            <form onsubmit="event.preventDefault(); app.executeWithdrawPayout();" class="space-y-4">
+                <!-- Chọn Ngân Hàng Thụ Hưởng -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Ngân Hàng Thụ Hưởng</label>
+                    <select id="withdrawBankSelect" onchange="app.handleWithdrawAccountLookup()" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500">
+                        <option value="MB">MBBank - Ngân Hàng Quân Đội</option>
+                        <option value="VCB">Vietcombank - Ngân Hàng Ngoại Thương VN</option>
+                        <option value="TCB">Techcombank - Ngân Hàng Kỹ Thương VN</option>
+                        <option value="VPB">VPBank - Ngân Hàng Việt Nam Thịnh Vượng</option>
+                        <option value="ACB">ACB - Ngân Hàng TMCP Á Châu</option>
+                        <option value="BIDV">BIDV - Ngân Hàng Đầu Tư & Phát Triển VN</option>
+                        <option value="CTG">VietinBank - Ngân Hàng Công Thương VN</option>
+                        <option value="TPB">TPBank - Ngân Hàng Tiên Phong</option>
+                        <option value="STB">Sacombank - Sài Gòn Thương Tín</option>
+                        <option value="HDB">HDBank - Phát Triển TP.HCM</option>
+                        <option value="SHB">SHB - Sài Gòn - Hà Nội</option>
+                        <option value="VIB">VIB - Quốc Tế Việt Nam</option>
+                        <option value="SSB">SeABank - Đông Nam Á</option>
+                        <option value="LPB">LPBank - Lộc Phát Việt Nam</option>
+                        <option value="MSB">MSB - Hàng Hải Việt Nam</option>
+                        <option value="EIB">Eximbank - Xuất Nhập Khẩu VN</option>
+                        <option value="BVB">BVBank - Bản Việt</option>
+                        <option value="OCB">OCB - Phương Đông</option>
+                        <option value="NAB">Nam A Bank - Nam Á</option>
+                        <option value="BAB">Bac A Bank - Bắc Á</option>
+                    </select>
+                </div>
+
+                <!-- Số Tài Khoản Ngân Hàng -->
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tài Khoản Ngân Hàng</label>
+                    <div class="relative">
+                        <input id="withdrawAccInput" oninput="app.handleWithdrawAccountLookup()" type="text" placeholder="Nhập số tài khoản ngân hàng thụ hưởng..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-amber-500" required>
+                        <div id="withdrawLookupSpinner" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-xs text-amber-400 font-semibold">
+                            <span class="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></span>
+                            <span>Tra cứu Napas...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- HỘP XÁC THỰC TÊN CHỦ TÀI KHOẢN (NAPAS 24/7) -->
+                <div id="withdrawLookupResult" class="hidden">
+                    <!-- Injected dynamically via PaymentSDK.lookupBank -->
+                </div>
+
+                <!-- Số Tiền Rút -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="text-xs font-bold text-slate-300 uppercase tracking-wider">Số Tiền Rút (VNĐ)</label>
+                        <span class="text-[11px] text-emerald-400">Phí giao dịch: <strong>0 VNĐ</strong></span>
+                    </div>
+                    <input id="withdrawAmountInput" type="text" placeholder="Nhập số tiền muốn rút..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-lg font-mono font-bold focus:outline-none focus:border-amber-500" required>
+                    
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <button type="button" onclick="document.getElementById('withdrawAmountInput').value = (500000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">500.000 đ</button>
+                        <button type="button" onclick="document.getElementById('withdrawAmountInput').value = (1000000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">1.000.000 đ</button>
+                        <button type="button" onclick="document.getElementById('withdrawAmountInput').value = (5000000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">5.000.000 đ</button>
+                        <button type="button" onclick="document.getElementById('withdrawAmountInput').value = (10000000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">10.000.000 đ</button>
+                        <button type="button" onclick="document.getElementById('withdrawAmountInput').value = app.user.availableBalance.toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-xs font-bold text-amber-400 border border-amber-500/40">Tất Cả Số Dư</button>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-3">
+                    <button id="btnSubmitWithdraw" type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-base shadow-xl shadow-amber-500/30 flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                        <span id="btnSubmitWithdrawText">Xác Nhận Rút Tiền Realtime 24/7</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: BIÊN LAI GIAO DỊCH THÀNH CÔNG -->
+    <div id="receiptModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="receipt-container modal-content-anim rounded-2xl p-6 sm:p-8 max-w-md w-full relative shadow-2xl">
+            <div class="text-center pb-4 border-b border-dashed border-slate-300">
+                <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 shadow-inner">
+                    <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-black text-slate-900 uppercase tracking-wide">Giao Dịch Thành Công</h3>
+                <div id="rcptAmount" class="text-2xl font-black text-emerald-600 font-mono mt-1"></div>
+                <div id="rcptNetwork" class="text-[11px] text-slate-500 font-medium">Hệ Thống Thanh Toán Realtime 24/7</div>
+            </div>
+
+            <div class="py-4 space-y-2.5 text-xs text-slate-600">
+                <div class="flex items-center justify-between">
+                    <span>Mã giao dịch (TxID):</span>
+                    <span id="rcptTxId" class="font-mono font-bold text-slate-900"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Người nhận:</span>
+                    <span id="rcptRecipient" class="font-bold text-slate-900 uppercase"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Số tài khoản nhận:</span>
+                    <span id="rcptAccount" class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Ngân hàng / Website:</span>
+                    <span id="rcptBank" class="font-bold text-slate-900"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Người gửi:</span>
+                    <span id="rcptSender" class="font-bold text-slate-900"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Số dư khả dụng sau giao dịch:</span>
+                    <span id="rcptBalanceAfter" class="font-mono font-bold text-blue-700"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Thời gian giao dịch:</span>
+                    <span id="rcptTime" class="font-mono text-slate-700"></span>
+                </div>
+                <div class="pt-2 border-t border-slate-200">
+                    <div class="text-slate-500 text-[11px]">Nội dung:</div>
+                    <div id="rcptMsg" class="font-medium text-slate-900 text-xs italic mt-0.5"></div>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between">
+                <div class="text-[10px] text-slate-400">
+                    <div>DIGIBANK PRIME 4.0 • CENTRAL HUB</div>
+                    <div>Giao dịch bảo mật & Realtime Verified</div>
+                </div>
+                <div class="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center text-[9px] font-mono font-bold text-center leading-tight">
+                    NAPAS<br>24/7
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <button onclick="app.closeReceiptModal()" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
+                    Đóng Biên Lai
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: POPUP THÔNG BÁO REALTIME NHẬN TIỀN -->
+    <div id="receivedMoneyModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-md w-full border-2 border-emerald-500 shadow-2xl relative glow-emerald">
+            <button onclick="app.closeReceivedMoneyModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="text-center mb-4">
+                <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 flex items-center justify-center mx-auto mb-3 animate-bounce shadow-lg shadow-emerald-500/30">
+                    <i data-lucide="bell-ring" class="w-8 h-8"></i>
+                </div>
+                <span class="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-widest">
+                    🔔 BIẾN ĐỘNG SỐ DƯ (+) REALTIME
+                </span>
+                <div id="recvAmountText" class="text-3xl sm:text-4xl font-black text-emerald-400 font-mono mt-3 text-gradient-emerald">
+                    +0 đ
+                </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-xs text-slate-300 mb-6">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span class="text-slate-400">Người gửi:</span>
+                    <span id="recvSenderName" class="font-bold text-white uppercase text-sm"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Số tài khoản người gửi:</span>
+                    <span id="recvSenderStk" class="font-mono font-bold text-amber-400 bg-slate-800 px-2 py-0.5 rounded"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Website / Cổng nguồn:</span>
+                    <span id="recvSenderWeb" class="font-bold text-blue-400"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Nội dung chuyển:</span>
+                    <span id="recvNote" class="font-medium text-slate-200 italic"></span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <span class="text-slate-400">Số dư khả dụng mới:</span>
+                    <span id="recvNewBalance" class="font-mono font-bold text-emerald-400 text-sm"></span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="app.closeReceivedMoneyModal()" class="w-1/2 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">
+                    Đã Hiểu
+                </button>
+                <button onclick="app.closeReceivedMoneyModal(); app.switchTab('history');" class="w-1/2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="history" class="w-4 h-4"></i> Xem Lịch Sử
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MỞ SỔ TIẾT KIỆM -->
     <div id="depositModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
         <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-700 shadow-2xl relative">
             <button onclick="app.closeDepositModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 transition">
@@ -921,187 +1192,6 @@
         </div>
     </div>
 
-    <!-- ================================================================================= -->
-    <!-- MODAL 2: BIÊN LAI CHUYỂN TIỀN THÀNH CÔNG (RECEIPT BILL) -->
-    <!-- ================================================================================= -->
-    <div id="receiptModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-        <div class="receipt-container modal-content-anim rounded-2xl p-6 sm:p-8 max-w-md w-full relative shadow-2xl">
-            <!-- Header Biên Lai -->
-            <div class="text-center pb-4 border-b border-dashed border-slate-300">
-                <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 shadow-inner">
-                    <i data-lucide="check-circle-2" class="w-8 h-8"></i>
-                </div>
-                <h3 class="text-lg font-black text-slate-900 uppercase tracking-wide">Chuyển Tiền Thành Công</h3>
-                <div id="rcptAmount" class="text-2xl font-black text-emerald-600 font-mono mt-1"></div>
-                <div id="rcptNetwork" class="text-[11px] text-slate-500 font-medium">Hệ Thống Ví Trung Tâm (Core Wallet API)</div>
-            </div>
-
-            <!-- Nội Dung Chi Tiết -->
-            <div class="py-4 space-y-2.5 text-xs text-slate-600">
-                <div class="flex items-center justify-between">
-                    <span>Mã giao dịch (TxID):</span>
-                    <span id="rcptTxId" class="font-mono font-bold text-slate-900"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span>Người nhận:</span>
-                    <span id="rcptRecipient" class="font-bold text-slate-900 uppercase"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span>Số tài khoản nhận:</span>
-                    <span id="rcptAccount" class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span>Website thụ hưởng:</span>
-                    <span id="rcptBank" class="font-bold text-slate-900"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span>Người gửi:</span>
-                    <span id="rcptSender" class="font-bold text-slate-900"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span>Số dư khả dụng sau chuyển:</span>
-                    <span id="rcptBalanceAfter" class="font-mono font-bold text-blue-700"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span>Thời gian giao dịch:</span>
-                    <span id="rcptTime" class="font-mono text-slate-700"></span>
-                </div>
-                <div class="pt-2 border-t border-slate-200">
-                    <div class="text-slate-500 text-[11px]">Nội dung chuyển tiền:</div>
-                    <div id="rcptMsg" class="font-medium text-slate-900 text-xs italic mt-0.5"></div>
-                </div>
-            </div>
-
-            <!-- Footer & QR Giả Lập -->
-            <div class="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between">
-                <div class="text-[10px] text-slate-400">
-                    <div>DIGIBANK PRIME 4.0 • CORE WALLET</div>
-                    <div>Giao dịch bảo mật & Idempotency Verified</div>
-                </div>
-                <div class="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center text-[9px] font-mono font-bold text-center leading-tight">
-                    CORE<br>WALLET
-                </div>
-            </div>
-
-            <div class="mt-6">
-                <button onclick="app.closeReceiptModal()" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
-                    Đóng Biên Lai
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================================================================================= -->
-    <!-- MODAL 3: POPUP THÔNG BÁO REALTIME NHẬN ĐƯỢC TIỀN (SOCKET.IO EVENT_MONEY_RECEIVED) -->
-    <!-- ================================================================================= -->
-    <div id="receivedMoneyModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-md w-full border-2 border-emerald-500 shadow-2xl relative glow-emerald">
-            <!-- Close button -->
-            <button onclick="app.closeReceivedMoneyModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-
-            <!-- Icon Header -->
-            <div class="text-center mb-4">
-                <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 flex items-center justify-center mx-auto mb-3 animate-bounce shadow-lg shadow-emerald-500/30">
-                    <i data-lucide="bell-ring" class="w-8 h-8"></i>
-                </div>
-                <span class="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-widest">
-                    🔔 BIẾN ĐỘNG SỐ DƯ (+) REALTIME
-                </span>
-                <div id="recvAmountText" class="text-3xl sm:text-4xl font-black text-emerald-400 font-mono mt-3 text-gradient-emerald">
-                    +0 đ
-                </div>
-            </div>
-
-            <!-- Details Box -->
-            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-xs text-slate-300 mb-6">
-                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <span class="text-slate-400">Người gửi:</span>
-                    <span id="recvSenderName" class="font-bold text-white uppercase text-sm"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-400">Số tài khoản người gửi:</span>
-                    <span id="recvSenderStk" class="font-mono font-bold text-amber-400 bg-slate-800 px-2 py-0.5 rounded"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-400">Website nguồn:</span>
-                    <span id="recvSenderWeb" class="font-bold text-blue-400"></span>
-                </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-slate-400">Nội dung chuyển:</span>
-                    <span id="recvNote" class="font-medium text-slate-200 italic"></span>
-                </div>
-                <div class="flex items-center justify-between pt-2 border-t border-slate-800">
-                    <span class="text-slate-400">Số dư khả dụng mới:</span>
-                    <span id="recvNewBalance" class="font-mono font-bold text-emerald-400 text-sm"></span>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-3">
-                <button onclick="app.closeReceivedMoneyModal()" class="w-1/2 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">
-                    Đã Hiểu
-                </button>
-                <button onclick="app.closeReceivedMoneyModal(); app.switchTab('history');" class="w-1/2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-1.5 transition">
-                    <i data-lucide="history" class="w-4 h-4"></i> Xem Lịch Sử
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================================================================================= -->
-    <!-- MODAL 4: NẠP TIỀN DEMO NHANH -->
-    <!-- ================================================================================= -->
-    <div id="topupModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
-        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-700 shadow-2xl relative">
-            <button onclick="app.closeTopupModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-
-            <div class="flex items-center gap-3 mb-5">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
-                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <h3 class="text-lg font-bold text-white">Nạp Vốn Trải Nghiệm Demo</h3>
-                    <p class="text-xs text-slate-400">Cấp thêm tiền vào số dư khả dụng tức thì</p>
-                </div>
-            </div>
-
-            <!-- Quick Presets -->
-            <div class="grid grid-cols-2 gap-3 mb-4">
-                <button onclick="app.executeTopup(10000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
-                    <div class="text-xs text-slate-400 font-medium">Nạp nhanh</div>
-                    <div class="text-base font-bold text-emerald-400 font-mono">+10.000.000 đ</div>
-                </button>
-                <button onclick="app.executeTopup(50000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
-                    <div class="text-xs text-slate-400 font-medium">Nạp nhanh</div>
-                    <div class="text-base font-bold text-emerald-400 font-mono">+50.000.000 đ</div>
-                </button>
-                <button onclick="app.executeTopup(100000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
-                    <div class="text-xs text-slate-400 font-medium">Nạp nhanh</div>
-                    <div class="text-base font-bold text-emerald-400 font-mono">+100.000.000 đ</div>
-                </button>
-                <button onclick="app.executeTopup(500000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
-                    <div class="text-xs text-slate-400 font-medium">Nạp VIP</div>
-                    <div class="text-base font-bold text-amber-400 font-mono">+500.000.000 đ</div>
-                </button>
-            </div>
-
-            <!-- Custom Amount -->
-            <div class="mb-5">
-                <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Hoặc nhập số tiền tùy chọn</label>
-                <div class="flex gap-2">
-                    <input id="customTopupInput" type="text" placeholder="vd: 20000000" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
-                    <button onclick="app.executeCustomTopup()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
-                        Nạp
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- TOAST NOTIFICATIONS STACK CONTAINER -->
     <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-3 pointer-events-none [&>*]:pointer-events-auto"></div>
 
@@ -1110,12 +1200,12 @@
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div class="flex items-center gap-2">
                 <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
-                <span>© 2026 DigiBank Prime. Hệ sinh thái Chuyển tiền Liên Website & Tiết kiệm Realtime 20 Ngân hàng.</span>
+                <span>© 2026 DigiBank Prime. Hệ sinh thái Nạp/Rút VietQR 24/7 & Chuyển Tiền Liên Website Realtime.</span>
             </div>
             <div class="flex items-center gap-4 text-slate-400">
-                <span class="hover:text-white cursor-pointer">Core Wallet API</span>
-                <span class="hover:text-white cursor-pointer">Socket.io Docs</span>
-                <span class="hover:text-white cursor-pointer">Bảo mật PCI DSS</span>
+                <span class="hover:text-white cursor-pointer">Central Payment Hub</span>
+                <span class="hover:text-white cursor-pointer">VietQR EMVCo</span>
+                <span class="hover:text-white cursor-pointer">Napas 24/7</span>
                 <span class="hover:text-white cursor-pointer">Hỗ trợ 24/7</span>
             </div>
         </div>

@@ -1,4 +1,4 @@
-// Main Application Controller for DigiBank Prime 4.0 & Core Wallet Ecosystem
+// Main Application Controller for DigiBank Prime 4.0 & Central Payment Gateway Hub
 class BankApp {
     constructor() {
         this.user = this.loadUser();
@@ -12,7 +12,9 @@ class BankApp {
         this.isSoundEnabled = true;
         this.socket = null;
         this.lookupDebounceTimer = null;
+        this.withdrawLookupTimer = null;
         this.verifiedReceiver = null;
+        this.verifiedWithdrawAccount = null;
 
         this.init();
     }
@@ -22,7 +24,6 @@ class BankApp {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                // Đảm bảo số tài khoản tuân thủ quy chuẩn 12 ký tự
                 if (!parsed.accountNumber || parsed.accountNumber.length !== 12 || !parsed.accountNumber.startsWith('W')) {
                     parsed.accountNumber = DEFAULT_USER.accountNumber;
                     parsed.webCode = DEFAULT_USER.webCode;
@@ -48,7 +49,6 @@ class BankApp {
             localStorage.removeItem('digibank_transactions');
             this.showToast("Đã khởi tạo lại dữ liệu thành công!", "success");
             
-            // Gọi reset API trên server nếu có
             try {
                 fetch(`${CORE_WALLET_CONFIG.apiUrl}/accounts/reset`, { method: 'POST' }).catch(() => {});
             } catch (e) {}
@@ -69,6 +69,14 @@ class BankApp {
         this.startClock();
         this.initSocket();
 
+        // 2) Khởi tạo kết nối Universal SDK với Central Payment Gateway Hub (port 9000)
+        if (window.PaymentSDK) {
+            PaymentSDK.init({
+                hubUrl: 'http://localhost:9000',
+                appId: 'DIGIBANK_PRIME_W03'
+            });
+        }
+
         // Subscribe to Savings Engine realtime ticks
         savingsManager.subscribe((deposits, stats) => {
             this.onRealtimeTick(deposits, stats);
@@ -84,19 +92,258 @@ class BankApp {
     }
 
     // ========================================================================
-    // 3. CƠ CHẾ REALTIME SOCKET.IO (MỤC 3 ĐẶC TẢ KỸ THUẬT)
+    // 3) TÍNH NĂNG NẠP TIỀN VIETQR REALTIME 24/7 (PAYMENT GATEWAY HUB SDK)
     // ========================================================================
+
+    openDepositModalPrompt() {
+        const modal = document.getElementById('depositPromptModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            const customInput = document.getElementById('depositPromptCustomInput');
+            if (customInput) customInput.value = (500000).toLocaleString('vi-VN');
+            soundManager.playClick();
+        }
+    }
+
+    closeDepositPromptModal() {
+        const modal = document.getElementById('depositPromptModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    setDepositPromptAmount(amount) {
+        const input = document.getElementById('depositPromptCustomInput');
+        if (input) input.value = amount.toLocaleString('vi-VN');
+    }
+
+    confirmOpenDepositSdk() {
+        const input = document.getElementById('depositPromptCustomInput');
+        const rawAmount = input ? input.value.replace(/\D/g, '') : '500000';
+        const amount = parseFloat(rawAmount) || 500000;
+
+        this.closeDepositPromptModal();
+
+        // Gọi PaymentSDK.openDepositModal theo đúng đặc tả mục 3
+        if (window.PaymentSDK) {
+            PaymentSDK.openDepositModal({
+                amount: amount,
+                userId: this.user.accountNumber,
+                onPaid: (res) => {
+                    this.handleDepositSuccess(res);
+                }
+            });
+        } else {
+            this.showToast("SDK Cổng thanh toán chưa sẵn sàng!", "error");
+        }
+    }
+
+    handleDepositSuccess(res) {
+        const amount = Number(res.amount || 0);
+        this.user.availableBalance += amount;
+        this.saveUser();
+
+        // Thêm vào lịch sử giao dịch
+        transferManager.addTransaction({
+            type: 'TOPUP',
+            title: `Nạp tiền VietQR (${res.transferCode || 'VIETQR 24/7'})`,
+            description: `Nạp thành công qua Cổng Thanh Toán Trung Tâm VietQR EMVCo`,
+            amount: amount,
+            fee: 0,
+            sender: `CỔNG VIETQR HUB (${res.bankName || 'NAPAS 24/7'})`,
+            recipient: this.user.accountName,
+            referenceCode: res.transactionId || ('PAY_' + Date.now())
+        });
+
+        transferManager.syncBalanceToCoreWallet(this.user.accountNumber, this.user.availableBalance);
+        this.updateHeaderBalances();
+        this.renderTransactions();
+
+        soundManager.playTingTing();
+        this.triggerConfetti();
+
+        this.showToast(`🎉 Nạp tiền thành công! +${amount.toLocaleString('vi-VN')} đ đã được cộng vào tài khoản qua VietQR Realtime.`, 'success', 6000);
+    }
+
+    // ========================================================================
+    // 4) TÍNH NĂNG RÚT TIỀN NGÂN HÀNG VIỆT NAM (NAPAS 247 LOOKUP & PAYOUT)
+    // ========================================================================
+
+    openWithdrawModal() {
+        const modal = document.getElementById('withdrawBankModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            const amountInput = document.getElementById('withdrawAmountInput');
+            if (amountInput) amountInput.value = '';
+            this.handleWithdrawAccountLookup();
+            soundManager.playClick();
+        }
+    }
+
+    closeWithdrawModal() {
+        const modal = document.getElementById('withdrawBankModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // Tra cứu thông tin số tài khoản Napas 24/7 khi người dùng nhập STK
+    handleWithdrawAccountLookup() {
+        if (this.withdrawLookupTimer) clearTimeout(this.withdrawLookupTimer);
+
+        this.withdrawLookupTimer = setTimeout(async () => {
+            const bankSelect = document.getElementById('withdrawBankSelect');
+            const accInput = document.getElementById('withdrawAccInput');
+            const spinner = document.getElementById('withdrawLookupSpinner');
+            const resultBox = document.getElementById('withdrawLookupResult');
+            const submitBtn = document.getElementById('btnSubmitWithdraw');
+
+            const bankCode = bankSelect ? bankSelect.value : '';
+            const accNo = accInput ? accInput.value.trim() : '';
+
+            if (!bankCode || accNo.length < 5) {
+                if (resultBox) resultBox.classList.add('hidden');
+                this.verifiedWithdrawAccount = null;
+                return;
+            }
+
+            if (spinner) spinner.classList.remove('hidden');
+
+            try {
+                // Gọi API tra cứu Napas 24/7 qua PaymentSDK.lookupBank (Mục 4 Đặc tả)
+                const data = await PaymentSDK.lookupBank(bankCode, accNo);
+                this.verifiedWithdrawAccount = data;
+
+                if (spinner) spinner.classList.add('hidden');
+                if (resultBox) {
+                    resultBox.classList.remove('hidden');
+                    resultBox.innerHTML = `
+                        <div class="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 flex items-center justify-between gap-3 animate-pulse-subtle">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                                    <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] text-slate-400 uppercase font-semibold">Tên Chủ Tài Khoản Thụ Hưởng (Napas 24/7):</div>
+                                    <div class="text-sm font-black text-emerald-400 uppercase">${data.ownerName}</div>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500 text-slate-950 uppercase">Đã xác thực</span>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                }
+                if (submitBtn) submitBtn.disabled = false;
+            } catch (err) {
+                this.verifiedWithdrawAccount = null;
+                if (spinner) spinner.classList.add('hidden');
+                if (resultBox) {
+                    resultBox.classList.remove('hidden');
+                    resultBox.innerHTML = `
+                        <div class="p-3 rounded-xl bg-red-950/40 border border-red-500/50 text-xs text-red-400 font-semibold flex items-center gap-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+                            <span>${err.message || 'Không tìm thấy số tài khoản này!'}</span>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                }
+                if (submitBtn) submitBtn.disabled = true;
+            }
+        }, 300);
+    }
+
+    // Thực hiện gửi lệnh rút tiền qua Napas 24/7
+    async executeWithdrawPayout() {
+        const bankSelect = document.getElementById('withdrawBankSelect');
+        const accInput = document.getElementById('withdrawAccInput');
+        const amountInput = document.getElementById('withdrawAmountInput');
+        const submitBtn = document.getElementById('btnSubmitWithdraw');
+        const btnText = document.getElementById('btnSubmitWithdrawText');
+
+        const bankCode = bankSelect ? bankSelect.value : '';
+        const accNo = accInput ? accInput.value.trim() : '';
+        const rawAmount = amountInput ? amountInput.value.replace(/\D/g, '') : '';
+        const amount = parseFloat(rawAmount);
+
+        if (!bankCode || !accNo) {
+            this.showToast("Vui lòng chọn ngân hàng và nhập số tài khoản!", "warning");
+            return;
+        }
+
+        if (isNaN(amount) || amount <= 0) {
+            this.showToast("Vui lòng nhập số tiền rút hợp lệ!", "warning");
+            return;
+        }
+
+        if (amount > this.user.availableBalance) {
+            this.showToast(`Số dư khả dụng không đủ! Bạn chỉ còn ${this.user.availableBalance.toLocaleString('vi-VN')} đ.`, "error");
+            soundManager.playError();
+            return;
+        }
+
+        const ownerName = this.verifiedWithdrawAccount?.ownerName || 'CHỦ TÀI KHOẢN';
+
+        if (submitBtn) submitBtn.disabled = true;
+        if (btnText) btnText.textContent = "Đang gửi lệnh rút tiền qua Napas 24/7...";
+
+        try {
+            // Gọi PaymentSDK.requestPayout (Mục 4 Đặc tả)
+            const res = await PaymentSDK.requestPayout({
+                bankCode: bankCode,
+                accountNumber: accNo,
+                accountName: ownerName,
+                amount: amount,
+                note: `Rut tien tu DigiBank Prime`,
+                userId: this.user.accountNumber
+            });
+
+            // Trừ tiền khỏi số dư người dùng
+            this.user.availableBalance -= amount;
+            this.saveUser();
+
+            // Ghi nhận giao dịch
+            const tx = transferManager.addTransaction({
+                type: 'TRANSFER_OUT',
+                title: `Rút tiền về ${bankCode} - ${accNo}`,
+                description: `Rút tiền về tài khoản ${ownerName} qua Napas 24/7`,
+                bankName: `${bankCode} Bank`,
+                accountNumber: accNo,
+                recipient: ownerName,
+                sender: this.user.accountName,
+                amount: -amount,
+                fee: 0,
+                referenceCode: res.transactionId || ('PO_' + Date.now())
+            });
+
+            transferManager.syncBalanceToCoreWallet(this.user.accountNumber, this.user.availableBalance);
+            this.updateHeaderBalances();
+            this.renderTransactions();
+            this.closeWithdrawModal();
+
+            // Hiển thị Biên lai rút tiền thành công
+            this.showReceiptModal(tx);
+
+            soundManager.playWithdraw();
+            this.triggerConfetti();
+            this.showToast(`✅ Rút tiền thành công! -${amount.toLocaleString('vi-VN')} đ đã được chuyển về ngân hàng ${bankCode} (${ownerName})`, 'success', 6000);
+
+        } catch (err) {
+            this.showToast(`Lỗi rút tiền: ${err.message}`, 'error');
+            soundManager.playError();
+        } finally {
+            if (submitBtn) submitBtn.disabled = false;
+            if (btnText) btnText.textContent = "Xác Nhận Rút Tiền Realtime 24/7";
+        }
+    }
+
+    // ========================================================================
+    // SOCKET.IO REALTIME & CHUYỂN TIỀN LIÊN WEB
+    // ========================================================================
+
     initSocket() {
         if (typeof io !== 'function') {
-            console.warn("[Socket.io] Chưa tải thư viện socket.io client");
-            this.updateSocketStatus(false, "Socket.io CDN Chưa Sẵn Sàng");
+            this.updateSocketStatus(false, "Socket.io Chưa Sẵn Sàng");
             return;
         }
 
         try {
             const socketUrl = CORE_WALLET_CONFIG.socketUrl;
-            console.log(`[Socket.io] Đang kết nối tới: ${socketUrl}`);
-
             this.socket = io(socketUrl, {
                 auth: { token: CORE_WALLET_CONFIG.appSecretToken },
                 transports: ['websocket', 'polling'],
@@ -105,42 +352,32 @@ class BankApp {
             });
 
             this.socket.on('connect', () => {
-                console.log(`[Socket.io] Kết nối thành công! Socket ID: ${this.socket.id}`);
-                const mySTK = this.user.accountNumber; // STK của user đang đăng nhập (W03889968688)
-
-                // 3.1. Join Room riêng theo đúng STK của mình
+                const mySTK = this.user.accountNumber;
                 this.socket.emit('JOIN_ACCOUNT_ROOM', mySTK);
                 this.updateSocketStatus(true, `Online • Room: ${mySTK}`);
             });
 
             this.socket.on('ROOM_JOINED', (res) => {
-                console.log(`[Socket.io] Server xác nhận đã vào Room: ${res.stk}`);
+                console.log(`[Socket.io] Đã vào phòng: ${res.stk}`);
             });
 
-            // 1. Lắng nghe thông báo NHẬN ĐƯỢC TIỀN (EVENT_MONEY_RECEIVED)
             this.socket.on('EVENT_MONEY_RECEIVED', (payload) => {
-                console.log('[Socket.io] Nhận sự kiện EVENT_MONEY_RECEIVED:', payload);
                 this.onMoneyReceived(payload);
             });
 
-            // 2. Lắng nghe thông báo ĐÃ TRỪ TIỀN (EVENT_MONEY_DEDUCTED)
             this.socket.on('EVENT_MONEY_DEDUCTED', (payload) => {
-                console.log('[Socket.io] Nhận sự kiện EVENT_MONEY_DEDUCTED:', payload);
                 this.onMoneyDeducted(payload);
             });
 
             this.socket.on('disconnect', (reason) => {
-                console.warn(`[Socket.io] Mất kết nối: ${reason}`);
-                this.updateSocketStatus(false, "Mất kết nối Socket");
+                this.updateSocketStatus(false, "Mất kết nối");
             });
 
             this.socket.on('connect_error', (err) => {
-                console.warn(`[Socket.io] Lỗi kết nối: ${err.message}`);
                 this.updateSocketStatus(false, "Đang kết nối lại...");
             });
 
         } catch (e) {
-            console.error("[Socket.io] Lỗi khởi tạo socket:", e);
             this.updateSocketStatus(false, "Lỗi kết nối");
         }
     }
@@ -159,25 +396,19 @@ class BankApp {
         }
     }
 
-    // Xử lý khi nhận được tiền từ Socket.io
     onMoneyReceived(payload) {
-        const tx = transferManager.handleIncomingMoney(this.user, payload);
+        transferManager.handleIncomingMoney(this.user, payload);
         this.saveUser();
         this.updateHeaderBalances();
         this.renderTransactions();
 
-        // Âm thanh Ting-Ting và Pháo hoa
         soundManager.playTingTing();
         this.triggerConfetti();
 
-        // Hiển thị Popup Modal nhận tiền nổi bật
         this.showReceivedMoneyModal(payload);
-
-        // Hiển thị Toast nhanh
-        this.showToast(`🔔 Bạn vừa nhận được +${Number(payload.amount).toLocaleString('vi-VN')} đ từ ${payload.sender_name} (${payload.sender_stk})`, 'success', 6000);
+        this.showToast(`🔔 Nhận được +${Number(payload.amount).toLocaleString('vi-VN')} đ từ ${payload.sender_name} (${payload.sender_stk})`, 'success', 6000);
     }
 
-    // Xử lý khi bị trừ tiền từ tab/thiết bị khác
     onMoneyDeducted(payload) {
         if (payload.new_balance !== undefined) {
             this.user.availableBalance = Number(payload.new_balance);
@@ -188,7 +419,6 @@ class BankApp {
         this.showToast(`💸 Tài khoản đã bị trừ -${Number(payload.amount).toLocaleString('vi-VN')} đ đến ${payload.receiver_name || payload.receiver_stk}`, 'info', 5000);
     }
 
-    // Hiển thị Modal Nhận Tiền Realtime
     showReceivedMoneyModal(payload) {
         const modal = document.getElementById('receivedMoneyModal');
         if (!modal) return;
@@ -215,7 +445,6 @@ class BankApp {
         if (modal) modal.classList.add('hidden');
     }
 
-    // Sao chép STK của người dùng
     copyMyStk() {
         const stk = this.user.accountNumber || 'W03889968688';
         navigator.clipboard.writeText(stk).then(() => {
@@ -225,11 +454,6 @@ class BankApp {
         });
     }
 
-    // ========================================================================
-    // 4. QUY TRÌNH PHÁT TRIỂN UI/UX CHUYỂN TIỀN LIÊN WEBSITE
-    // ========================================================================
-
-    // Render danh sách tài khoản mẫu trong hệ sinh thái
     renderEcosystemQuickPicker() {
         const container = document.getElementById('ecosystemQuickPickerContainer');
         if (!container) return;
@@ -256,7 +480,6 @@ class BankApp {
         lucide.createIcons();
     }
 
-    // 1-Click điền STK từ danh sách mẫu
     fillQuickTransfer(stk) {
         this.switchTab('transfer');
         this.switchTransferMode('CROSS_WEB');
@@ -269,7 +492,6 @@ class BankApp {
         }
     }
 
-    // Xử lý khi người dùng nhập STK trong ô chuyển tiền liên web
     handleStkInputChange(value) {
         const cleaned = String(value || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12);
         const input = document.getElementById('crossWebStkInput');
@@ -293,13 +515,11 @@ class BankApp {
             return;
         }
 
-        // Khi người dùng nhập đủ 12 ký tự -> Tự động gọi API 2.1 (Lookup)
         if (cleaned.length === 12) {
             this.triggerStkLookup(cleaned);
         }
     }
 
-    // 2.1. Thực hiện gọi API Tra cứu STK
     async triggerStkLookup(stk) {
         const spinner = document.getElementById('stkLookupSpinner');
         const resultContainer = document.getElementById('lookupResultContainer');
@@ -371,7 +591,6 @@ class BankApp {
         if (input) input.value = amount.toLocaleString('vi-VN');
     }
 
-    // 2.2. Thực thi chuyển tiền liên website (Bắt buộc Idempotency)
     async executeCrossWebTransfer() {
         const stkInput = document.getElementById('crossWebStkInput');
         const amountInput = document.getElementById('crossWebAmountInput');
@@ -405,7 +624,6 @@ class BankApp {
             return;
         }
 
-        // Vô hiệu hóa nút (Disable) ngay khi bấm để tránh click liên tiếp (Mục 4 Đặc tả)
         if (submitBtn) submitBtn.disabled = true;
         if (btnText) btnText.textContent = "Đang xử lý chuyển tiền qua Core Wallet...";
 
@@ -421,13 +639,11 @@ class BankApp {
             this.updateHeaderBalances();
             this.renderTransactions();
 
-            // Reset form
             if (stkInput) stkInput.value = '';
             if (amountInput) amountInput.value = '';
             if (noteInput) noteInput.value = '';
             this.handleStkInputChange('');
 
-            // Mở Biên Lai Giao Dịch Thành Công (Receipt Modal)
             this.showReceiptModal({
                 id: res.transaction_id,
                 referenceCode: res.transaction_id,
@@ -455,7 +671,6 @@ class BankApp {
         }
     }
 
-    // Mô phỏng bắn tiền Realtime từ một website con qua Socket.io
     async simulateIncomingTransfer(amount = 50000) {
         const select = document.getElementById('simSenderSelect');
         const senderStk = select ? select.value : 'W01829102948';
@@ -479,7 +694,6 @@ class BankApp {
                 throw new Error(data.message);
             }
         } catch (e) {
-            // Fallback nếu không có server: phát trực tiếp vào hàm onMoneyReceived
             const senderAcc = ECOSYSTEM_ACCOUNTS.find(a => a.stk === senderStk) || { owner_name: 'Tran Thi Shop', origin_web: 'Web Shop E-Commerce' };
             this.onMoneyReceived({
                 amount: amount,
@@ -495,7 +709,6 @@ class BankApp {
         }
     }
 
-    // Chuyển chế độ chuyển tiền (Liên Website vs Napas 24/7)
     switchTransferMode(mode) {
         this.transferMode = mode;
 
@@ -613,7 +826,6 @@ class BankApp {
         soundManager.playClick();
     }
 
-    // Hiển thị danh sách 20 Ngân hàng
     renderBankList() {
         const grid = document.getElementById('banksGridContainer');
         if (!grid) return;
@@ -1058,7 +1270,6 @@ class BankApp {
         `;
     }
 
-    // Chuyển tiền Napas truyền thống
     executeTransfer() {
         const bankSelect = document.getElementById('transferBankSelect');
         const accInput = document.getElementById('transferAccInput');
@@ -1138,7 +1349,7 @@ class BankApp {
         setText('rcptRecipient', tx.recipient || tx.receiver_name);
         setText('rcptSender', tx.sender || this.user.accountName);
         setText('rcptTime', new Date(tx.timestamp || Date.now()).toLocaleString('vi-VN'));
-        setText('rcptMsg', tx.description || tx.note || 'Chuyen tien lien website');
+        setText('rcptMsg', tx.description || tx.note || 'Giao dich thanh cong');
         setText('rcptBalanceAfter', `${(tx.senderBalanceAfter !== undefined ? tx.senderBalanceAfter : this.user.availableBalance).toLocaleString('vi-VN')} đ`);
 
         modal.classList.remove('hidden');
@@ -1147,42 +1358,6 @@ class BankApp {
 
     closeReceiptModal() {
         document.getElementById('receiptModal').classList.add('hidden');
-    }
-
-    openTopupModal() {
-        document.getElementById('topupModal').classList.remove('hidden');
-        soundManager.playClick();
-    }
-
-    closeTopupModal() {
-        document.getElementById('topupModal').classList.add('hidden');
-    }
-
-    executeTopup(amount) {
-        try {
-            const tx = transferManager.topUp(this.user, amount, `Nạp tiền demo +${amount.toLocaleString('vi-VN')} đ`);
-            this.saveUser();
-            this.updateHeaderBalances();
-            this.renderTransactions();
-            this.closeTopupModal();
-
-            soundManager.playTingTing();
-            this.triggerConfetti();
-            this.showToast(`Nạp tiền thành công! +${amount.toLocaleString('vi-VN')} đ đã được cộng vào tài khoản khả dụng.`, 'success');
-        } catch (e) {
-            this.showToast(e.message, 'error');
-        }
-    }
-
-    executeCustomTopup() {
-        const input = document.getElementById('customTopupInput');
-        const amount = parseFloat(input.value.replace(/\D/g, ''));
-        if (isNaN(amount) || amount <= 0) {
-            this.showToast("Vui lòng nhập số tiền hợp lệ!", "warning");
-            return;
-        }
-        this.executeTopup(amount);
-        input.value = '';
     }
 
     renderTransactions() {
@@ -1244,7 +1419,7 @@ class BankApp {
             case 'TRANSFER_IN':
                 return '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold">Nhận Liên Web (+)</span>';
             case 'TRANSFER_OUT':
-                return '<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[11px] font-bold">Chuyển Tiền (-)</span>';
+                return '<span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[11px] font-bold">Chuyển / Rút (-)</span>';
             case 'SAVINGS_OPEN':
                 return '<span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[11px] font-semibold">Gửi Tiết Kiệm</span>';
             case 'SAVINGS_WITHDRAW':
@@ -1252,7 +1427,7 @@ class BankApp {
             case 'INTEREST_CLAIM':
                 return '<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-semibold">Nhận Tiền Lãi</span>';
             case 'TOPUP':
-                return '<span class="px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20 text-[11px] font-semibold">Nạp Tiền</span>';
+                return '<span class="px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 border border-teal-500/20 text-[11px] font-semibold">Nạp VietQR</span>';
             default:
                 return '<span class="px-2 py-0.5 rounded bg-slate-700 text-slate-300 text-[11px]">Giao Dịch</span>';
         }
@@ -1324,14 +1499,12 @@ class BankApp {
     }
 
     bindEvents() {
-        // Navigation Tab Buttons
         document.querySelectorAll('.nav-tab-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 this.switchTab(btn.dataset.tab);
             });
         });
 
-        // Search bank
         const searchInput = document.getElementById('bankSearchInput');
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
@@ -1340,7 +1513,6 @@ class BankApp {
             });
         }
 
-        // Filter bank buttons
         document.querySelectorAll('.bank-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.bank-filter-btn').forEach(b => {
@@ -1355,7 +1527,6 @@ class BankApp {
             });
         });
 
-        // Deposit amount input listener
         const depInput = document.getElementById('depositAmountInput');
         if (depInput) {
             depInput.addEventListener('input', (e) => {
@@ -1364,7 +1535,6 @@ class BankApp {
             });
         }
 
-        // STK Input Listener for Cross-Web Transfer
         const crossStkInput = document.getElementById('crossWebStkInput');
         if (crossStkInput) {
             crossStkInput.addEventListener('input', (e) => {
@@ -1372,7 +1542,6 @@ class BankApp {
             });
         }
 
-        // Transaction filters
         document.querySelectorAll('.tx-filter-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.tx-filter-btn').forEach(b => {
@@ -1387,7 +1556,6 @@ class BankApp {
             });
         });
 
-        // Transaction search
         const txSearchInput = document.getElementById('txSearchInput');
         if (txSearchInput) {
             txSearchInput.addEventListener('input', (e) => {
