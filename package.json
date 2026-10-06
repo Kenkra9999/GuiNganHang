@@ -1,0 +1,19 @@
+{
+  "name": "guinganhang",
+  "version": "1.0.0",
+  "description": "Ứng dụng web ngân hàng số cao cấp được thiết kế hiện đại, giao diện bắt mắt với tính năng **Gửi Tiết Kiệm Nhận Lãi Siêu Tốc Theo Phút (0.70% - 1.20%/phút)** tại **20 Ngân Hàng Hàng Đầu Việt Nam**.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4"
+  }
+}

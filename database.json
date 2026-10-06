@@ -1,0 +1,104 @@
+{
+  "accounts": [
+    {
+      "stk": "W03889968688",
+      "owner_name": "NGUYEN VAN A",
+      "origin_web": "DigiBank Prime (Web Ngân Hàng)",
+      "balance": 99900000,
+      "currency": "VND",
+      "status": "ACTIVE"
+    },
+    {
+      "stk": "W01829102948",
+      "owner_name": "Tran Thi Shop",
+      "origin_web": "Web Shop E-Commerce",
+      "balance": 50100000,
+      "currency": "VND",
+      "status": "ACTIVE"
+    },
+    {
+      "stk": "W02746192834",
+      "owner_name": "Nguyen Van Game",
+      "origin_web": "Web Game PlayZone",
+      "balance": 25000000,
+      "currency": "VND",
+      "status": "ACTIVE"
+    },
+    {
+      "stk": "W04918237461",
+      "owner_name": "Le Van Crypto",
+      "origin_web": "Web Crypto Exchange",
+      "balance": 80000000,
+      "currency": "VND",
+      "status": "ACTIVE"
+    },
+    {
+      "stk": "W05123456789",
+      "owner_name": "Pham Thi Service",
+      "origin_web": "Web Dịch Vụ Số",
+      "balance": 15000000,
+      "currency": "VND",
+      "status": "ACTIVE"
+    }
+  ],
+  "transactions": [
+    {
+      "transaction_id": "TX_1791257148051_4410",
+      "request_id": "REQ_1791257148041_TEST",
+      "sender_stk": "W03889968688",
+      "sender_name": "NGUYEN VAN A",
+      "sender_web": "DigiBank Prime (Web Ngân Hàng)",
+      "receiver_stk": "W01829102948",
+      "receiver_name": "Tran Thi Shop",
+      "receiver_web": "Web Shop E-Commerce",
+      "amount": 100000,
+      "note": "Test transfer 100k",
+      "sender_balance_after": 99850000,
+      "receiver_balance_after": 50100000,
+      "timestamp": 1791257148051
+    },
+    {
+      "transaction_id": "TX_1791257071458_5769",
+      "request_id": "REQ_TEST_IDEMPOTENCY_001",
+      "sender_stk": "W03889968688",
+      "sender_name": "NGUYEN VAN A",
+      "sender_web": "DigiBank Prime (Web Ngân Hàng)",
+      "receiver_stk": "W02746192834",
+      "receiver_name": "Nguyen Van Game",
+      "receiver_web": "Web Game PlayZone",
+      "amount": 50000,
+      "note": "Chuyen tien thu nghiem Idempotency",
+      "sender_balance_after": 99950000,
+      "receiver_balance_after": 25050000,
+      "timestamp": 1791257071458
+    }
+  ],
+  "processedRequests": {
+    "REQ_TEST_IDEMPOTENCY_001": {
+      "status": "SUCCESS",
+      "message": "Chuyển tiền thành công",
+      "data": {
+        "transaction_id": "TX_1791257071458_5769",
+        "amount": 50000,
+        "sender_balance_after": 99950000,
+        "receiver_stk": "W02746192834",
+        "receiver_name": "Nguyen Van Game",
+        "note": "Chuyen tien thu nghiem Idempotency",
+        "timestamp": 1791257071458
+      }
+    },
+    "REQ_1791257148041_TEST": {
+      "status": "SUCCESS",
+      "message": "Chuyển tiền thành công",
+      "data": {
+        "transaction_id": "TX_1791257148051_4410",
+        "amount": 100000,
+        "sender_balance_after": 99850000,
+        "receiver_stk": "W01829102948",
+        "receiver_name": "Tran Thi Shop",
+        "note": "Test transfer 100k",
+        "timestamp": 1791257148051
+      }
+    }
+  }
+}

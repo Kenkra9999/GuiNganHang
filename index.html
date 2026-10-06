@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigiBank Prime - Hệ Thống Ngân Hàng & Chuyển Tiền Liên Website Realtime</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        },
+                        gold: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Socket.io CDN -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-[#0b0f19] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-white">
+
+    <!-- TOP ANNOUNCEMENT BANNER -->
+    <div class="bg-gradient-to-r from-amber-600 via-emerald-600 to-indigo-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-md">
+        <span class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] uppercase tracking-wider font-bold">Chuẩn STK 12 Ký Tự</span>
+        <span>🌐 Hệ thống Chuyển Tiền Liên Website & Tiết Kiệm Siêu Tốc <strong class="text-amber-300">0.70% - 1.20%/phút</strong> kết nối qua Core Wallet & Socket.io Realtime!</span>
+    </div>
+
+    <!-- MAIN HEADER -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 shadow-xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="app.switchTab('dashboard')">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 via-emerald-500 to-blue-600 p-0.5 shadow-lg shadow-emerald-500/20">
+                    <div class="w-full h-full bg-[#0b0f19] rounded-[14px] flex items-center justify-center text-emerald-400">
+                        <i data-lucide="landmark" class="w-6 h-6"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl font-extrabold tracking-tight text-white font-mono">DIGI<span class="text-emerald-400">BANK</span></span>
+                        <span class="px-2 py-0.5 text-[10px] font-black rounded-md bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 uppercase">Prime 4.0</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-medium">Hệ Thống Tiết Kiệm & Chuyển Tiền Liên Web Realtime</p>
+                </div>
+            </div>
+
+            <!-- Live Clock & Socket Status -->
+            <div class="hidden md:flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs">
+                <!-- Socket Connection Indicator -->
+                <div id="socketStatusBadge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-[11px]">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span id="socketStatusText">Socket.io: Đang kết nối...</span>
+                </div>
+                <span class="text-slate-600">|</span>
+                <div id="liveClock" class="font-medium text-slate-300"></div>
+            </div>
+
+            <!-- User Info & Quick Actions -->
+            <div class="flex items-center gap-3">
+                <!-- Reset Data Button -->
+                <button onclick="app.resetAllData()" title="Đặt lại dữ liệu mặc định (100 triệu)" class="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-red-400 transition">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Sound Toggle Button -->
+                <button onclick="app.toggleSound()" title="Bật/Tắt âm thanh" class="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition">
+                    <i id="soundToggleIcon" data-lucide="volume-2" class="w-5 h-5 text-amber-400"></i>
+                </button>
+
+                <!-- Nạp Tiền Demo Button -->
+                <button onclick="app.openTopupModal()" class="hidden sm:flex items-center gap-2 py-2 px-3.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs transition">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>Nạp Tiền Demo</span>
+                </button>
+
+                <!-- User Profile Badge (Standard 12-char STK) -->
+                <div class="flex items-center gap-3 pl-2 border-l border-slate-800">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 p-0.5 shadow-md">
+                        <div class="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                            NV
+                        </div>
+                    </div>
+                    <div class="hidden lg:block text-left">
+                        <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span>NGUYEN VAN A</span>
+                            <span class="px-1.5 py-0.2 rounded text-[9px] bg-blue-500/20 text-blue-400 border border-blue-500/30 font-bold">W03</span>
+                            <i data-lucide="badge-check" class="w-4 h-4 text-emerald-400"></i>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <span class="text-[11px] text-amber-400 font-mono font-semibold" id="headerUserStk">STK: W03889968688</span>
+                            <button onclick="app.copyMyStk()" title="Sao chép STK 12 ký tự" class="text-slate-400 hover:text-amber-400 p-0.5 transition">
+                                <i data-lucide="copy" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS BAR -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-2 overflow-x-auto py-2.5 border-t border-slate-800/60 no-scrollbar">
+            <button data-tab="dashboard" class="nav-tab-btn active-nav-tab py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                <span>Tổng Quan</span>
+            </button>
+            <button data-tab="transfer" class="nav-tab-btn py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
+                <span>Chuyển Tiền Liên Web</span>
+                <span class="px-1.5 py-0.5 text-[10px] font-black rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 uppercase">Realtime</span>
+            </button>
+            <button data-tab="savings" class="nav-tab-btn py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <i data-lucide="piggy-bank" class="w-4 h-4 text-amber-400"></i>
+                <span>Gửi Tiết Kiệm Realtime</span>
+                <span id="activeSavingsCountBadge" class="px-2 py-0.5 text-xs font-bold rounded-full bg-slate-800 text-slate-400">0</span>
+            </button>
+            <button data-tab="analytics" class="nav-tab-btn py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <i data-lucide="line-chart" class="w-4 h-4 text-blue-400"></i>
+                <span>Phân Tích Tài Sản</span>
+            </button>
+            <button data-tab="history" class="nav-tab-btn py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <i data-lucide="history" class="w-4 h-4 text-purple-400"></i>
+                <span>Lịch Sử Giao Dịch</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- FOUR GLOBAL SUMMARY BALANCE CARDS -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Card 1: Số Dư Khả Dụng -->
+            <div class="glass-panel p-5 rounded-2xl border-slate-700/60 relative overflow-hidden group hover:border-emerald-500/50 transition">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl group-hover:bg-emerald-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Số Dư Khả Dụng</span>
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                        <i data-lucide="wallet" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="text-2xl font-black text-white font-mono val-available-balance tracking-tight">100.000.000 đ</div>
+                <div class="mt-2 text-[11px] text-emerald-400 flex items-center gap-1 font-medium">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Sẵn sàng chuyển liên web & gửi tiết kiệm
+                </div>
+            </div>
+
+            <!-- Card 2: Đang Gửi Tiết Kiệm (Bị khóa gửi) -->
+            <div class="glass-panel p-5 rounded-2xl border-slate-700/60 relative overflow-hidden group hover:border-blue-500/50 transition">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-blue-500/10 rounded-full blur-xl group-hover:bg-blue-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Đang Gửi Tiết Kiệm</span>
+                    <div class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                        <i data-lucide="lock" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="text-2xl font-black text-blue-400 font-mono val-locked-balance tracking-tight">0 đ</div>
+                <div class="mt-2 text-[11px] text-amber-400 flex items-center gap-1 font-medium">
+                    <i data-lucide="info" class="w-3.5 h-3.5"></i> Đang sinh lãi (Rút ra mới chuyển được)
+                </div>
+            </div>
+
+            <!-- Card 3: Tiền Lãi Đang Sinh Lời Realtime -->
+            <div class="glass-panel p-5 rounded-2xl border-amber-500/40 relative overflow-hidden group glow-gold transition">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-amber-500/20 rounded-full blur-xl transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                        Tiền Lãi Sinh Lời Realtime
+                    </span>
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="text-2xl font-black text-emerald-400 font-mono val-live-interest tracking-tight live-interest-ticker">+0 đ</div>
+                <div class="mt-2 text-[11px] text-slate-300 flex items-center justify-between font-medium">
+                    <span>Lãi 0.70% - 1.20% / phút</span>
+                    <button onclick="app.switchTab('savings')" class="text-amber-400 hover:underline font-bold">Chi tiết &rarr;</button>
+                </div>
+            </div>
+
+            <!-- Card 4: Tổng Tài Sản -->
+            <div class="glass-panel p-5 rounded-2xl border-slate-700/60 relative overflow-hidden group hover:border-purple-500/50 transition">
+                <div class="absolute -right-6 -bottom-6 w-24 h-24 bg-purple-500/10 rounded-full blur-xl group-hover:bg-purple-500/20 transition"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Tài Sản Ước Tính</span>
+                    <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
+                        <i data-lucide="trending-up" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="text-2xl font-black text-purple-300 font-mono val-total-networth tracking-tight">100.000.000 đ</div>
+                <div class="mt-2 text-[11px] text-slate-400 flex items-center justify-between font-medium">
+                    <span>Tổng lãi đã nhận:</span>
+                    <span class="text-emerald-400 font-mono font-bold val-total-interest">0 đ</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 1: DASHBOARD VIEW -->
+        <!-- ================================================================================= -->
+        <div id="view-dashboard" class="tab-view-container space-y-6">
+            <!-- Hero Banner & Quick Actions -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- VIP Card Visual with Standard 12-char STK -->
+                <div class="vip-card-bg rounded-3xl p-6 border border-slate-700/80 shadow-2xl flex flex-col justify-between min-h-[230px]">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="landmark" class="w-6 h-6 text-emerald-400"></i>
+                            <span class="font-extrabold tracking-widest text-sm text-white">DIGIBANK PRIME</span>
+                        </div>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 uppercase tracking-widest flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                            CORE WALLET VIP
+                        </span>
+                    </div>
+
+                    <div class="my-3">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Số Tài Khoản Định Danh Hệ Sinh Thái (12 Ký Tự)</span>
+                            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">[W03] Web Ngân Hàng</span>
+                        </div>
+                        <div class="text-xl sm:text-2xl font-mono tracking-wider text-amber-300 font-black flex items-center justify-between">
+                            <span id="dashCardStk">W038 8996 8688</span>
+                            <button onclick="app.copyMyStk()" class="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-slate-300 pt-2 border-t border-slate-700/60">
+                        <div>
+                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Chủ Tài Khoản</div>
+                            <div class="font-bold text-white tracking-wide">NGUYEN VAN A</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[10px] text-slate-500 uppercase font-semibold">Hệ Thống Kết Nối</div>
+                            <div class="font-mono font-bold text-emerald-400 flex items-center gap-1 justify-end">
+                                <i data-lucide="zap" class="w-3.5 h-3.5"></i> Socket.io Realtime
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fast Actions & Simulator Preview -->
+                <div class="lg:col-span-2 glass-panel rounded-3xl p-6 border-slate-700/80 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                                    <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i>
+                                    Thao Tác Nhanh & Chuyển Tiền Liên Website
+                                </h3>
+                                <p class="text-xs text-slate-400">Chuyển tiền tức thì theo quy chuẩn STK 12 ký tự qua Core Wallet & Socket.io</p>
+                            </div>
+                            <button onclick="app.openTopupModal()" class="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold border border-emerald-500/30 transition flex items-center gap-1.5">
+                                <i data-lucide="wallet-cards" class="w-4 h-4"></i> Nạp Tiền
+                            </button>
+                        </div>
+
+                        <!-- Quick Shortcut Buttons -->
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <button onclick="app.switchTab('transfer')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-emerald-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="send" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-xs font-bold text-white">Chuyển Liên Web</div>
+                                <div class="text-[10px] text-emerald-400">Chuẩn STK 12 ký tự</div>
+                            </button>
+
+                            <button onclick="app.switchTab('savings')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-amber-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="piggy-bank" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-xs font-bold text-white">Gửi Tiết Kiệm</div>
+                                <div class="text-[10px] text-slate-400">Lãi 1.2%/phút</div>
+                            </button>
+
+                            <button onclick="app.withdrawAllDeposits()" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-blue-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="download" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-xs font-bold text-white">Rút Tất Cả Sổ</div>
+                                <div class="text-[10px] text-slate-400">Gốc + Lãi về ví</div>
+                            </button>
+
+                            <button onclick="app.switchTab('history')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 text-left transition group">
+                                <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
+                                    <i data-lucide="history" class="w-5 h-5"></i>
+                                </div>
+                                <div class="text-xs font-bold text-white">Lịch Sử Ví</div>
+                                <div class="text-[10px] text-slate-400">Biến động số dư</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Ecosystem Quick Preview Bar -->
+                    <div class="mt-4 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <span class="text-slate-400 flex items-center gap-1">
+                            <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
+                            Tài khoản mẫu liên website:
+                        </span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span onclick="app.fillQuickTransfer('W01829102948')" class="cursor-pointer px-2 py-0.5 rounded-md bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-mono transition">
+                                W01829102948 (Web Shop)
+                            </span>
+                            <span onclick="app.fillQuickTransfer('W02746192834')" class="cursor-pointer px-2 py-0.5 rounded-md bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[11px] font-mono transition">
+                                W02746192834 (Web Game)
+                            </span>
+                            <span onclick="app.fillQuickTransfer('W04918237461')" class="cursor-pointer px-2 py-0.5 rounded-md bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 text-[11px] font-mono transition">
+                                W04918237461 (Web Crypto)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BẢNG CÁC SỔ TIẾT KIỆM ĐANG HOẠT ĐỘNG TRÊN DASHBOARD -->
+            <div class="glass-panel rounded-3xl p-6 border-slate-700/80">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i data-lucide="layers" class="w-5 h-5 text-amber-400"></i>
+                            Sổ Tiết Kiệm Đang Sinh Lãi Realtime Từng Phút
+                        </h3>
+                        <p class="text-xs text-slate-400">Tiền lãi nhảy liên tục từng giây (0.70% - 1.20%/phút). Bạn có thể bấm "Rút Tất Cả" bất cứ lúc nào để chuyển tiền!</p>
+                    </div>
+                    <button onclick="app.switchTab('savings')" class="text-xs font-bold text-amber-400 hover:underline">
+                        Mở thêm sổ mới &rarr;
+                    </button>
+                </div>
+
+                <!-- Empty state -->
+                <div id="emptySavingsState" class="text-center py-10 border border-dashed border-slate-800 rounded-2xl bg-slate-900/40">
+                    <div class="w-12 h-12 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                        <i data-lucide="piggy-bank" class="w-6 h-6"></i>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-300">Bạn chưa có sổ tiết kiệm nào đang sinh lãi</p>
+                    <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto">Hãy chọn 1 trong 20 ngân hàng để gửi tiết kiệm với lãi suất siêu tốc tới 1.20% mỗi phút!</p>
+                    <button onclick="app.switchTab('savings')" class="mt-4 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition">
+                        Khám Phá 20 Ngân Hàng
+                    </button>
+                </div>
+
+                <!-- Active Savings Table Container -->
+                <div id="activeSavingsContainer" class="hidden overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400 bg-slate-900/60">
+                                <th class="py-3 px-4 rounded-l-xl">Ngân Hàng & Mã Sổ</th>
+                                <th class="py-3 px-4 text-right">Số Tiền Gốc</th>
+                                <th class="py-3 px-4 text-center">Lãi Suất / Phút</th>
+                                <th class="py-3 px-4 text-right">Tiền Lãi Đã Nhận (+VNĐ)</th>
+                                <th class="py-3 px-4 text-right hidden md:table-cell">Tổng Nhận Ước Tính</th>
+                                <th class="py-3 px-4 text-center rounded-r-xl">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeSavingsTableBody">
+                            <!-- Injected dynamically by app.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 2: CHUYỂN TIỀN LIÊN WEBSITE & NAPAS 24/7 (ĐẶC TẢ KỸ THUẬT CORE WALLET) -->
+        <!-- ================================================================================= -->
+        <div id="view-transfer" class="tab-view-container hidden space-y-6">
+            
+            <!-- Transfer Header Sub-Tabs Selector -->
+            <div class="flex items-center justify-between flex-wrap gap-4 glass-panel p-4 rounded-3xl border-slate-700/80">
+                <div class="flex items-center gap-2">
+                    <button id="btnTransferModeCrossWeb" onclick="app.switchTransferMode('CROSS_WEB')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-900/40">
+                        <i data-lucide="globe" class="w-4 h-4"></i>
+                        <span>Chuyển Tiền Liên Website (STK 12 Ký Tự)</span>
+                        <span class="px-1.5 py-0.5 rounded text-[9px] bg-white/20 uppercase font-black">Core Wallet</span>
+                    </button>
+                    <button id="btnTransferModeNapas" onclick="app.switchTransferMode('NAPAS_BANK')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-slate-900 text-slate-400 hover:text-white border border-slate-800">
+                        <i data-lucide="building" class="w-4 h-4"></i>
+                        <span>Chuyển 20 Ngân Hàng Napas 24/7</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 text-xs text-slate-400">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Hệ Thống Idempotent & Row-Level Locking Online</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- ========================================================= -->
+                <!-- FORM 1: CHUYỂN TIỀN LIÊN WEBSITE (CORE WALLET ECOSYSTEM) -->
+                <!-- ========================================================= -->
+                <div id="crossWebTransferSection" class="lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-emerald-500/40 shadow-2xl relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+                        <div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                                CORE WALLET API v1.0 • IDEMPOTENCY READY
+                            </span>
+                            <h2 class="text-xl sm:text-2xl font-black text-white mt-1">Chuyển Tiền Liên Website Hệ Sinh Thái</h2>
+                            <p class="text-xs text-slate-400">Giao tiếp qua Core Wallet & Realtime Socket Server. Tự động tra cứu khi nhập đủ 12 ký tự STK.</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                            <i data-lucide="send" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <!-- Available Balance Alert -->
+                    <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <div class="text-xs text-slate-400">Số dư khả dụng người gửi (W03889968688):</div>
+                            <div class="text-xl font-black text-emerald-400 font-mono val-available-balance">100.000.000 đ</div>
+                        </div>
+                        <div class="text-left sm:text-right">
+                            <div class="text-[11px] text-amber-400 font-medium">
+                                <i data-lucide="lock" class="w-3 h-3 inline"></i> Đang trong sổ tiết kiệm: <span class="font-mono font-bold val-locked-balance">0 đ</span>
+                            </div>
+                            <div class="text-[10px] text-slate-500">(Rút tiết kiệm nếu cần thêm vốn chuyển khoản)</div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Pick Accounts in Ecosystem -->
+                    <div class="mb-5 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800">
+                        <div class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i> Chọn nhanh STK website con trong hệ sinh thái:
+                            </span>
+                            <span class="text-[10px] text-slate-500">1-Click điền ngay</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="ecosystemQuickPickerContainer">
+                            <!-- Injected by app.js -->
+                        </div>
+                    </div>
+
+                    <!-- Cross-Web Form -->
+                    <form onsubmit="event.preventDefault(); app.executeCrossWebTransfer();" class="space-y-4">
+                        <!-- Input Số Tài Khoản (Đúng 12 ký tự quy chuẩn) -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                    <span>Số Tài Khoản Người Nhận (STK)</span>
+                                    <span class="text-[10px] text-emerald-400 font-normal">(Đúng 12 ký tự: [3 mã Web][9 số])</span>
+                                </label>
+                                <span id="stkCharCounter" class="text-[11px] font-mono text-slate-400 font-bold">0/12</span>
+                            </div>
+                            <div class="relative">
+                                <input id="crossWebStkInput" type="text" maxlength="12" placeholder="Ví dụ: W01829102948 (Web Shop) hoặc W02746192834 (Web Game)" class="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-base font-mono font-bold uppercase tracking-wider focus:outline-none focus:border-emerald-500" required>
+                                <div id="stkLookupSpinner" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-emerald-400 font-semibold">
+                                    <span class="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></span>
+                                    <span>Tra cứu API...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- HỘP THÔNG TIN NGƯỜI NHẬN SAU KHI TRA CỨU API (MÀU XANH LÁ HOẶC BÁO ĐỎ) -->
+                        <div id="lookupResultContainer" class="hidden">
+                            <!-- Injected dynamically via JS: Green Success or Red Error -->
+                        </div>
+
+                        <!-- Số Tiền Chuyển -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider">Số Tiền Chuyển (VNĐ)</label>
+                                <span class="text-[11px] text-emerald-400 font-medium">Phí Core Wallet: <strong>0 VNĐ (Miễn phí)</strong></span>
+                            </div>
+                            <input id="crossWebAmountInput" type="text" placeholder="Nhập số tiền chuyển..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-lg font-mono font-bold focus:outline-none focus:border-emerald-500" required>
+                            
+                            <!-- Quick Amount Buttons -->
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <button type="button" onclick="app.setCrossWebAmount(50000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">50.000 đ</button>
+                                <button type="button" onclick="app.setCrossWebAmount(100000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">100.000 đ</button>
+                                <button type="button" onclick="app.setCrossWebAmount(500000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">500.000 đ</button>
+                                <button type="button" onclick="app.setCrossWebAmount(1000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">1.000.000 đ</button>
+                                <button type="button" onclick="app.setCrossWebAmount(10000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">10.000.000 đ</button>
+                                <button type="button" onclick="document.getElementById('crossWebAmountInput').value = app.user.availableBalance.toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-xs font-bold text-emerald-400 border border-emerald-500/40">Tất Cả Số Dư</button>
+                            </div>
+                        </div>
+
+                        <!-- Nội Dung Chuyển Tiền -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nội Dung Chuyển Tiền</label>
+                            <input id="crossWebNoteInput" type="text" placeholder="NGUYEN VAN A chuyen tien lien website" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+
+                        <!-- Submit Button with Double-Click Protection -->
+                        <div class="pt-4">
+                            <button id="btnSubmitCrossWebTransfer" type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-base shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i data-lucide="shield-check" class="w-5 h-5"></i>
+                                <span id="btnSubmitCrossWebText">Xác Nhận Chuyển Tiền Liên Website</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ========================================================= -->
+                <!-- FORM 2: CHUYỂN KHOẢN 20 NGÂN HÀNG NAPAS 24/7 (CŨ) -->
+                <!-- ========================================================= -->
+                <div id="napasTransferSection" class="hidden lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-slate-700/80">
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+                        <div>
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+                                NAPAS 24/7 SIÊU TỐC
+                            </span>
+                            <h2 class="text-xl sm:text-2xl font-bold text-white mt-1">Chuyển Khoản 20 Ngân Hàng Lớn</h2>
+                            <p class="text-xs text-slate-400">Chuyển tiền truyền thống tới BVBank, SHB, Nam A Bank, VPBank, Big 4,...</p>
+                        </div>
+                        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+                            <i data-lucide="building-2" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+
+                    <form onsubmit="event.preventDefault(); app.executeTransfer();" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Ngân Hàng Thụ Hưởng</label>
+                            <select id="transferBankSelect" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500">
+                                <!-- Injected from data.js -->
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tài Khoản</label>
+                            <input id="transferAccInput" type="text" placeholder="Nhập số tài khoản ngân hàng thụ hưởng" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Tên Người Nhận</label>
+                            <input id="transferNameInput" type="text" placeholder="Nhập họ và tên (vd: TRAN THI B)" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm uppercase focus:outline-none focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tiền Chuyển (VNĐ)</label>
+                            <input id="transferAmountInput" type="text" placeholder="Nhập số tiền cần chuyển..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-lg font-mono font-bold focus:outline-none focus:border-blue-500">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nội Dung</label>
+                            <input id="transferMsgInput" type="text" placeholder="NGUYEN VAN A chuyen tien" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500">
+                        </div>
+
+                        <div class="pt-4">
+                            <button type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-base shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition">
+                                <i data-lucide="shield-check" class="w-5 h-5"></i>
+                                Xác Nhận Chuyển Khoản Napas
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- ========================================================= -->
+                <!-- SIDEBAR: REALTIME SOCKET.IO TESTER & SIMULATOR -->
+                <!-- ========================================================= -->
+                <div class="space-y-6">
+                    <!-- Realtime Socket.io Simulator Widget -->
+                    <div class="glass-panel rounded-3xl p-6 border-amber-500/40 bg-gradient-to-b from-amber-950/20 to-slate-900/80 shadow-xl">
+                        <div class="flex items-center gap-2 text-amber-400 font-bold text-sm mb-2">
+                            <i data-lucide="radio" class="w-5 h-5 animate-pulse"></i>
+                            <span>Mô Phỏng Socket.io Nhận Tiền</span>
+                        </div>
+                        <p class="text-xs text-slate-300 mb-4 leading-relaxed">
+                            Bấm nút dưới đây để giả lập một website khác trong hệ sinh thái bắn tiền về STK DigiBank (<strong class="text-amber-400">W03889968688</strong>). Bạn sẽ thấy thông báo Popup Realtime, âm thanh Ting-Ting và số dư tự nhảy ngay lập tức!
+                        </p>
+
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 mb-1 uppercase">Chọn Website Bắn Tiền Tới Bạn:</label>
+                                <select id="simSenderSelect" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-amber-500">
+                                    <option value="W01829102948">Tran Thi Shop - Web Shop E-Commerce (W01)</option>
+                                    <option value="W02746192834">Nguyen Van Game - Web Game PlayZone (W02)</option>
+                                    <option value="W04918237461">Le Van Crypto - Web Crypto Exchange (W04)</option>
+                                    <option value="W05123456789">Pham Thi Service - Web Dịch Vụ Số (W05)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-400 mb-1 uppercase">Số Tiền Bắn Demo:</label>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <button type="button" onclick="app.simulateIncomingTransfer(50000)" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-emerald-400 border border-slate-700 text-xs font-mono font-bold transition">
+                                        +50.000 đ
+                                    </button>
+                                    <button type="button" onclick="app.simulateIncomingTransfer(200000)" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-emerald-400 border border-slate-700 text-xs font-mono font-bold transition">
+                                        +200.000 đ
+                                    </button>
+                                    <button type="button" onclick="app.simulateIncomingTransfer(1000000)" class="py-2 px-2 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-emerald-400 border border-slate-700 text-xs font-mono font-bold transition">
+                                        +1.000.000 đ
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button onclick="app.simulateIncomingTransfer()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 hover:from-amber-400 to-amber-600 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition transform active:scale-95">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                                ⚡ Bắn Thử 50.000 đ Qua Socket.io
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Rule & Specs Summary Card -->
+                    <div class="glass-panel rounded-3xl p-6 border-slate-700/80">
+                        <h4 class="font-bold text-white text-sm mb-3 flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                            Quy Chuẩn Kỹ Thuật Đã Tích Hợp
+                        </h4>
+                        <ul class="text-xs text-slate-300 space-y-2 leading-relaxed">
+                            <li class="flex items-start gap-2">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                <span><strong>STK 12 ký tự</strong>: [3 ký tự mã Web][9 chữ số].</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                <span><strong>API Tra Cứu (2.1)</strong>: Tự động gọi khi đủ 12 ký tự.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                <span><strong>Idempotency & Row Locking (2.2)</strong>: Khóa giao dịch, chống trừ tiền 2 lần.</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400 mt-0.5 flex-shrink-0"></i>
+                                <span><strong>Socket.io (3.1)</strong>: Lắng nghe <code>EVENT_MONEY_RECEIVED</code> & <code>EVENT_MONEY_DEDUCTED</code>.</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 3: SAVINGS CENTER (20 NGÂN HÀNG & LÃI SUẤT REALTIME) -->
+        <!-- ================================================================================= -->
+        <div id="view-savings" class="tab-view-container hidden space-y-6">
+            <!-- Header Thông Tin Tiết Kiệm -->
+            <div class="glass-panel rounded-3xl p-6 border-slate-700/80 bg-gradient-to-r from-slate-900/90 via-slate-900/80 to-slate-900/90">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <span class="px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-400 border border-amber-500/40 uppercase tracking-wider">
+                            TRUNG TÂM TIẾT KIỆM REALTIME
+                        </span>
+                        <h2 class="text-2xl font-black text-white mt-2">Gửi Tiết Kiệm Nhận Lãi Từng Phút (0.70% - 1.20%/phút)</h2>
+                        <p class="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
+                            Chọn ngân hàng bạn yêu thích trong số <strong class="text-amber-400">20 Ngân Hàng</strong> để gửi tiền. Tiền lãi từ <strong class="text-emerald-400">0.70% đến 1.20% mỗi phút</strong> sẽ được cộng dồn theo từng giây. Bạn có thể rút toàn bộ bất cứ khi nào để chuyển khoản bình thường!
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button onclick="app.withdrawAllDeposits()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/40 font-bold text-xs transition flex items-center gap-2">
+                            <i data-lucide="arrow-down-to-dot" class="w-4 h-4"></i>
+                            Rút Tất Cả Các Sổ (Gốc + Lãi)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BẢNG CÁC SỔ TIẾT KIỆM ĐANG HOẠT ĐỘNG -->
+            <div class="glass-panel rounded-3xl p-6 border-slate-700/80">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i data-lucide="layers" class="w-5 h-5 text-amber-400"></i>
+                        Danh Sách Sổ Tiết Kiệm Đang Sinh Lãi (<span id="activeDepositCount">0</span>)
+                    </h3>
+                    <div class="text-xs text-slate-400">
+                        * Tiền đang gửi tiết kiệm không thể dùng để chuyển tiền cho tới khi bạn rút ra
+                    </div>
+                </div>
+
+                <!-- Table Active Deposits -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400 bg-slate-900/60">
+                                <th class="py-3 px-4 rounded-l-xl">Ngân Hàng & Mã Sổ</th>
+                                <th class="py-3 px-4 text-right">Số Tiền Gốc</th>
+                                <th class="py-3 px-4 text-center">Lãi Suất / Phút</th>
+                                <th class="py-3 px-4 text-right">Tiền Lãi Đã Nhận (+VNĐ)</th>
+                                <th class="py-3 px-4 text-right hidden md:table-cell">Tổng Nhận Ước Tính</th>
+                                <th class="py-3 px-4 text-center rounded-r-xl">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activeSavingsTableBody2">
+                            <!-- Injected by app.js -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- DANH SÁCH 20 NGÂN HÀNG TÍCH HỢP -->
+            <div class="space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="landmark" class="w-6 h-6 text-emerald-400"></i>
+                            Danh Sách 20 Ngân Hàng Lãi Suất Theo Phút
+                        </h3>
+                        <p class="text-xs text-slate-400">Chọn ngân hàng có lãi suất cao nhất để tối đa hóa dòng tiền sinh lời</p>
+                    </div>
+
+                    <!-- Search & Filter Controls -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                            <input id="bankSearchInput" type="text" placeholder="Tìm ngân hàng..." class="pl-9 pr-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-500 w-44 sm:w-56">
+                        </div>
+
+                        <div class="flex items-center gap-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800 text-xs">
+                            <button data-filter="ALL" class="bank-filter-btn px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold transition">Tất Cả (20)</button>
+                            <button data-filter="TOP_RATE" class="bank-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white transition">Top Lãi Cao (≥1.1%)</button>
+                            <button data-filter="BIG4" class="bank-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white transition">Big 4</button>
+                            <button data-filter="HOT" class="bank-filter-btn px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-white transition">Hot</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 20 Banks Grid Container -->
+                <div id="banksGridContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Injected dynamically by app.js (20 banks) -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 4: ANALYTICS & CHARTS -->
+        <!-- ================================================================================= -->
+        <div id="view-analytics" class="tab-view-container hidden space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+                        <i data-lucide="pie-chart" class="w-6 h-6 text-emerald-400"></i>
+                        Phân Tích Tài Sản & Tăng Trưởng Lợi Nhuận
+                    </h2>
+                    <p class="text-xs text-slate-400">Báo cáo trực quan biến động số dư và hiệu suất sinh lời theo thời gian thực</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Phân bổ tài sản -->
+                <div class="glass-panel rounded-3xl p-6 border-slate-700/80 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-white mb-1">Cơ Cấu Phân Bổ Tài Sản</h3>
+                        <p class="text-xs text-slate-400 mb-4">Tỷ lệ số dư khả dụng, tiền gửi tiết kiệm và lãi chưa rút</p>
+                    </div>
+                    <div class="h-64 relative flex items-center justify-center">
+                        <canvas id="assetAllocationChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Tăng trưởng tiền lãi Realtime -->
+                <div class="glass-panel rounded-3xl p-6 border-slate-700/80 flex flex-col justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-white mb-1">Đường Tăng Trưởng Tiền Lãi (VNĐ)</h3>
+                        <p class="text-xs text-slate-400 mb-4">Tích lũy lợi nhuận tự động cập nhật liên tục</p>
+                    </div>
+                    <div class="h-64 relative">
+                        <canvas id="profitGrowthChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart 3: So sánh lãi suất 10 ngân hàng dẫn đầu -->
+            <div class="glass-panel rounded-3xl p-6 border-slate-700/80">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white">So Sánh Lãi Suất Top 10 Ngân Hàng (% / Phút)</h3>
+                        <p class="text-xs text-slate-400">BVBank dẫn đầu thị trường với 1.20%/phút, tiếp theo là SHB và Nam A Bank</p>
+                    </div>
+                </div>
+                <div class="h-72 relative">
+                    <canvas id="bankRatesComparisonChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================================= -->
+        <!-- TAB 5: TRANSACTION HISTORY -->
+        <!-- ================================================================================= -->
+        <div id="view-history" class="tab-view-container hidden space-y-6">
+            <div class="glass-panel rounded-3xl p-6 border-slate-700/80">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="history" class="w-6 h-6 text-purple-400"></i>
+                            Lịch Sử Biến Động Số Dư & Giao Dịch
+                        </h2>
+                        <p class="text-xs text-slate-400">Theo dõi toàn bộ lịch sử chuyển tiền liên website, nhận tiền realtime, gửi tiết kiệm & nhận lãi</p>
+                    </div>
+
+                    <!-- Filter buttons -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input id="txSearchInput" type="text" placeholder="Tìm giao dịch..." class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none focus:border-purple-500 w-40">
+                        <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+                            <button data-tx-filter="ALL" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold transition">Tất Cả</button>
+                            <button data-tx-filter="TRANSFER" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Chuyển/Nhận Tiền</button>
+                            <button data-tx-filter="SAVINGS" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Tiết Kiệm & Lãi</button>
+                            <button data-tx-filter="TOPUP" class="tx-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition">Nạp Tiền</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Transactions -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400 bg-slate-900/60">
+                                <th class="py-3 px-4 rounded-l-xl">Giao Dịch / Nội Dung</th>
+                                <th class="py-3 px-4 text-center">Phân Loại</th>
+                                <th class="py-3 px-4 text-right">Biến Động Số Dư</th>
+                                <th class="py-3 px-4 text-center hidden sm:table-cell">Thời Gian</th>
+                                <th class="py-3 px-4 text-center rounded-r-xl">Trạng Thái</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTableBody">
+                            <!-- Injected by app.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="emptyTransactionState" class="hidden text-center py-10 text-slate-400 text-xs">
+                    Không có giao dịch nào phù hợp.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ================================================================================= -->
+    <!-- MODAL 1: MỞ SỔ TIẾT KIỆM & MÁY TÍNH LÃI SUẤT DỰ KIẾN -->
+    <!-- ================================================================================= -->
+    <div id="depositModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-lg w-full border border-slate-700 shadow-2xl relative">
+            <button onclick="app.closeDepositModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800/80 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="flex items-center gap-3.5 mb-5">
+                <div id="depModalBankLogo" class="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold shadow-lg"></div>
+                <div>
+                    <h3 id="depModalBankName" class="text-base sm:text-lg font-bold text-white leading-tight"></h3>
+                    <div class="flex items-center gap-2 mt-0.5">
+                        <span class="text-xs text-slate-400">Lãi suất thực:</span>
+                        <span id="depModalBankRate" class="text-xs font-black text-amber-400 font-mono"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 mb-4 flex items-center justify-between text-xs">
+                <span class="text-slate-400">Số dư khả dụng của bạn:</span>
+                <span id="depModalAvailBalance" class="font-bold text-emerald-400 font-mono"></span>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tiền Gửi Tiết Kiệm (VNĐ)</label>
+                <div class="relative">
+                    <input id="depositAmountInput" type="text" placeholder="Nhập số tiền gửi (Tối thiểu 100.000 đ)" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-base font-bold focus:outline-none focus:border-amber-500">
+                </div>
+
+                <div class="grid grid-cols-4 gap-2 mt-2">
+                    <button type="button" onclick="app.setDepositAmountQuick(25)" class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">25%</button>
+                    <button type="button" onclick="app.setDepositAmountQuick(50)" class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">50%</button>
+                    <button type="button" onclick="app.setDepositAmountQuick(75)" class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">75%</button>
+                    <button type="button" onclick="app.setDepositAmountQuick(100)" class="py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 text-xs font-bold">100%</button>
+                </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 mb-6 space-y-2 text-xs">
+                <div class="font-bold text-slate-300 flex items-center justify-between pb-1.5 border-b border-slate-800">
+                    <span class="flex items-center gap-1.5 text-amber-400">
+                        <i data-lucide="calculator" class="w-4 h-4"></i> Dự Toán Tiền Lãi Nhận Được:
+                    </span>
+                    <span class="text-[10px] text-slate-500 font-mono">Tự động cộng dồn</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Sau 1 phút:</span>
+                    <span id="proj1m" class="font-mono font-bold text-emerald-400">+0 đ</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Sau 5 phút:</span>
+                    <span id="proj5m" class="font-mono font-bold text-emerald-400">+0 đ</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Sau 15 phút:</span>
+                    <span id="proj15m" class="font-mono font-bold text-emerald-400">+0 đ</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Sau 1 giờ (60 phút):</span>
+                    <span id="proj60m" class="font-mono font-bold text-emerald-400">+0 đ</span>
+                </div>
+                <div class="flex items-center justify-between pt-1 border-t border-slate-800 font-semibold">
+                    <span class="text-amber-400">Sau 24 giờ:</span>
+                    <span id="proj24h" class="font-mono font-bold text-amber-400 text-sm">+0 đ</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button onclick="app.closeDepositModal()" class="w-1/3 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">
+                    Hủy Bỏ
+                </button>
+                <button onclick="app.executeDeposit()" class="w-2/3 py-3 rounded-xl bg-gradient-to-r from-amber-500 hover:from-amber-400 to-amber-600 text-slate-950 font-black text-sm shadow-xl shadow-amber-500/20 flex items-center justify-center gap-2 transition transform active:scale-95">
+                    <i data-lucide="piggy-bank" class="w-4 h-4"></i>
+                    Xác Nhận Gửi Tiền
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================================= -->
+    <!-- MODAL 2: BIÊN LAI CHUYỂN TIỀN THÀNH CÔNG (RECEIPT BILL) -->
+    <!-- ================================================================================= -->
+    <div id="receiptModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="receipt-container modal-content-anim rounded-2xl p-6 sm:p-8 max-w-md w-full relative shadow-2xl">
+            <!-- Header Biên Lai -->
+            <div class="text-center pb-4 border-b border-dashed border-slate-300">
+                <div class="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 shadow-inner">
+                    <i data-lucide="check-circle-2" class="w-8 h-8"></i>
+                </div>
+                <h3 class="text-lg font-black text-slate-900 uppercase tracking-wide">Chuyển Tiền Thành Công</h3>
+                <div id="rcptAmount" class="text-2xl font-black text-emerald-600 font-mono mt-1"></div>
+                <div id="rcptNetwork" class="text-[11px] text-slate-500 font-medium">Hệ Thống Ví Trung Tâm (Core Wallet API)</div>
+            </div>
+
+            <!-- Nội Dung Chi Tiết -->
+            <div class="py-4 space-y-2.5 text-xs text-slate-600">
+                <div class="flex items-center justify-between">
+                    <span>Mã giao dịch (TxID):</span>
+                    <span id="rcptTxId" class="font-mono font-bold text-slate-900"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Người nhận:</span>
+                    <span id="rcptRecipient" class="font-bold text-slate-900 uppercase"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Số tài khoản nhận:</span>
+                    <span id="rcptAccount" class="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Website thụ hưởng:</span>
+                    <span id="rcptBank" class="font-bold text-slate-900"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Người gửi:</span>
+                    <span id="rcptSender" class="font-bold text-slate-900"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Số dư khả dụng sau chuyển:</span>
+                    <span id="rcptBalanceAfter" class="font-mono font-bold text-blue-700"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span>Thời gian giao dịch:</span>
+                    <span id="rcptTime" class="font-mono text-slate-700"></span>
+                </div>
+                <div class="pt-2 border-t border-slate-200">
+                    <div class="text-slate-500 text-[11px]">Nội dung chuyển tiền:</div>
+                    <div id="rcptMsg" class="font-medium text-slate-900 text-xs italic mt-0.5"></div>
+                </div>
+            </div>
+
+            <!-- Footer & QR Giả Lập -->
+            <div class="pt-4 border-t border-dashed border-slate-300 flex items-center justify-between">
+                <div class="text-[10px] text-slate-400">
+                    <div>DIGIBANK PRIME 4.0 • CORE WALLET</div>
+                    <div>Giao dịch bảo mật & Idempotency Verified</div>
+                </div>
+                <div class="w-12 h-12 bg-slate-900 text-white rounded-lg flex items-center justify-center text-[9px] font-mono font-bold text-center leading-tight">
+                    CORE<br>WALLET
+                </div>
+            </div>
+
+            <div class="mt-6">
+                <button onclick="app.closeReceiptModal()" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
+                    Đóng Biên Lai
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================================= -->
+    <!-- MODAL 3: POPUP THÔNG BÁO REALTIME NHẬN ĐƯỢC TIỀN (SOCKET.IO EVENT_MONEY_RECEIVED) -->
+    <!-- ================================================================================= -->
+    <div id="receivedMoneyModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-md w-full border-2 border-emerald-500 shadow-2xl relative glow-emerald">
+            <!-- Close button -->
+            <button onclick="app.closeReceivedMoneyModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Icon Header -->
+            <div class="text-center mb-4">
+                <div class="w-16 h-16 rounded-3xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 flex items-center justify-center mx-auto mb-3 animate-bounce shadow-lg shadow-emerald-500/30">
+                    <i data-lucide="bell-ring" class="w-8 h-8"></i>
+                </div>
+                <span class="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-widest">
+                    🔔 BIẾN ĐỘNG SỐ DƯ (+) REALTIME
+                </span>
+                <div id="recvAmountText" class="text-3xl sm:text-4xl font-black text-emerald-400 font-mono mt-3 text-gradient-emerald">
+                    +0 đ
+                </div>
+            </div>
+
+            <!-- Details Box -->
+            <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2.5 text-xs text-slate-300 mb-6">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                    <span class="text-slate-400">Người gửi:</span>
+                    <span id="recvSenderName" class="font-bold text-white uppercase text-sm"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Số tài khoản người gửi:</span>
+                    <span id="recvSenderStk" class="font-mono font-bold text-amber-400 bg-slate-800 px-2 py-0.5 rounded"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Website nguồn:</span>
+                    <span id="recvSenderWeb" class="font-bold text-blue-400"></span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-400">Nội dung chuyển:</span>
+                    <span id="recvNote" class="font-medium text-slate-200 italic"></span>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <span class="text-slate-400">Số dư khả dụng mới:</span>
+                    <span id="recvNewBalance" class="font-mono font-bold text-emerald-400 text-sm"></span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-3">
+                <button onclick="app.closeReceivedMoneyModal()" class="w-1/2 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">
+                    Đã Hiểu
+                </button>
+                <button onclick="app.closeReceivedMoneyModal(); app.switchTab('history');" class="w-1/2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-1.5 transition">
+                    <i data-lucide="history" class="w-4 h-4"></i> Xem Lịch Sử
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================================= -->
+    <!-- MODAL 4: NẠP TIỀN DEMO NHANH -->
+    <!-- ================================================================================= -->
+    <div id="topupModal" class="fixed inset-0 z-50 modal-backdrop hidden flex items-center justify-center p-4">
+        <div class="glass-panel modal-content-anim rounded-3xl p-6 sm:p-8 max-w-md w-full border border-slate-700 shadow-2xl relative">
+            <button onclick="app.closeTopupModal()" class="absolute top-5 right-5 text-slate-400 hover:text-white p-2 rounded-xl bg-slate-800 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-white">Nạp Vốn Trải Nghiệm Demo</h3>
+                    <p class="text-xs text-slate-400">Cấp thêm tiền vào số dư khả dụng tức thì</p>
+                </div>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button onclick="app.executeTopup(10000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-xs text-slate-400 font-medium">Nạp nhanh</div>
+                    <div class="text-base font-bold text-emerald-400 font-mono">+10.000.000 đ</div>
+                </button>
+                <button onclick="app.executeTopup(50000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-xs text-slate-400 font-medium">Nạp nhanh</div>
+                    <div class="text-base font-bold text-emerald-400 font-mono">+50.000.000 đ</div>
+                </button>
+                <button onclick="app.executeTopup(100000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-xs text-slate-400 font-medium">Nạp nhanh</div>
+                    <div class="text-base font-bold text-emerald-400 font-mono">+100.000.000 đ</div>
+                </button>
+                <button onclick="app.executeTopup(500000000)" class="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-emerald-500/50 text-left transition">
+                    <div class="text-xs text-slate-400 font-medium">Nạp VIP</div>
+                    <div class="text-base font-bold text-amber-400 font-mono">+500.000.000 đ</div>
+                </button>
+            </div>
+
+            <!-- Custom Amount -->
+            <div class="mb-5">
+                <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Hoặc nhập số tiền tùy chọn</label>
+                <div class="flex gap-2">
+                    <input id="customTopupInput" type="text" placeholder="vd: 20000000" class="flex-1 px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-sm focus:outline-none focus:border-emerald-500">
+                    <button onclick="app.executeCustomTopup()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
+                        Nạp
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS STACK CONTAINER -->
+    <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-3 pointer-events-none [&>*]:pointer-events-auto"></div>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto border-t border-slate-800/80 bg-slate-950/60 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+                <span>© 2026 DigiBank Prime. Hệ sinh thái Chuyển tiền Liên Website & Tiết kiệm Realtime 20 Ngân hàng.</span>
+            </div>
+            <div class="flex items-center gap-4 text-slate-400">
+                <span class="hover:text-white cursor-pointer">Core Wallet API</span>
+                <span class="hover:text-white cursor-pointer">Socket.io Docs</span>
+                <span class="hover:text-white cursor-pointer">Bảo mật PCI DSS</span>
+                <span class="hover:text-white cursor-pointer">Hỗ trợ 24/7</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- App Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/savings.js"></script>
+    <script src="js/transfer.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
