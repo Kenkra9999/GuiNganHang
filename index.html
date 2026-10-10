@@ -141,9 +141,9 @@
                 <span>Tổng Quan</span>
             </button>
             <button data-tab="transfer" class="nav-tab-btn py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
-                <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
-                <span>Chuyển Tiền Liên Web</span>
-                <span class="px-1.5 py-0.5 text-[10px] font-black rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 uppercase">Realtime</span>
+                <i data-lucide="send" class="w-4 h-4 text-blue-400"></i>
+                <span>Chuyển Khoản Napas 24/7</span>
+                <span class="px-1.5 py-0.5 text-[10px] font-black rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/40 uppercase">Napas</span>
             </button>
             <button data-tab="savings" class="nav-tab-btn py-2 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition whitespace-nowrap text-slate-400 hover:text-white hover:bg-slate-800/60">
                 <i data-lucide="piggy-bank" class="w-4 h-4 text-amber-400"></i>
@@ -327,8 +327,8 @@
                                 <div class="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center mb-2 group-hover:scale-110 transition">
                                     <i data-lucide="send" class="w-5 h-5"></i>
                                 </div>
-                                <div class="text-xs font-bold text-white">Chuyển Liên Web</div>
-                                <div class="text-[10px] text-blue-400">STK 12 ký tự</div>
+                                <div class="text-xs font-bold text-white">Chuyển Khoản 24/7</div>
+                                <div class="text-[10px] text-blue-400">Napas 20 ngân hàng</div>
                             </button>
 
                             <button onclick="app.switchTab('savings')" class="p-3.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 hover:border-purple-500/40 text-left transition group">
@@ -338,25 +338,6 @@
                                 <div class="text-xs font-bold text-white">Gửi Tiết Kiệm</div>
                                 <div class="text-[10px] text-purple-400">Lãi 1.2%/phút</div>
                             </button>
-                        </div>
-                    </div>
-
-                    <!-- Ecosystem Quick Preview Bar -->
-                    <div class="mt-4 pt-3 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <span class="text-slate-400 flex items-center gap-1">
-                            <i data-lucide="globe" class="w-3.5 h-3.5 text-blue-400"></i>
-                            Tài khoản mẫu liên website:
-                        </span>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span onclick="app.fillQuickTransfer('W01829102948')" class="cursor-pointer px-2 py-0.5 rounded-md bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[11px] font-mono transition">
-                                W01829102948 (Web Shop)
-                            </span>
-                            <span onclick="app.fillQuickTransfer('W02746192834')" class="cursor-pointer px-2 py-0.5 rounded-md bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[11px] font-mono transition">
-                                W02746192834 (Web Game)
-                            </span>
-                            <span onclick="app.fillQuickTransfer('W04918237461')" class="cursor-pointer px-2 py-0.5 rounded-md bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 text-[11px] font-mono transition">
-                                W04918237461 (Web Crypto)
-                            </span>
                         </div>
                     </div>
                 </div>
@@ -415,38 +396,18 @@
         <!-- ================================================================================= -->
         <div id="view-transfer" class="tab-view-container hidden space-y-6">
             
-            <!-- Transfer Header Sub-Tabs Selector -->
-            <div class="flex items-center justify-between flex-wrap gap-4 glass-panel p-4 rounded-3xl border-slate-700/80">
-                <div class="flex items-center gap-2">
-                    <button id="btnTransferModeCrossWeb" onclick="app.switchTransferMode('CROSS_WEB')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-black transition flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-900/40">
-                        <i data-lucide="globe" class="w-4 h-4"></i>
-                        <span>Chuyển Tiền Liên Website (STK 12 Ký Tự)</span>
-                        <span class="px-1.5 py-0.5 rounded text-[9px] bg-white/20 uppercase font-black">Core Wallet</span>
-                    </button>
-                    <button id="btnTransferModeNapas" onclick="app.switchTransferMode('NAPAS_BANK')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-bold transition flex items-center gap-2 bg-slate-900 text-slate-400 hover:text-white border border-slate-800">
-                        <i data-lucide="building" class="w-4 h-4"></i>
-                        <span>Chuyển 20 Ngân Hàng Napas 24/7</span>
-                    </button>
-                </div>
-
-                <div class="flex items-center gap-2 text-xs text-slate-400">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span>Hệ Thống Idempotent & Row-Level Locking Online</span>
-                </div>
-            </div>
-
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- FORM 1: CHUYỂN TIỀN LIÊN WEBSITE -->
-                <div id="crossWebTransferSection" class="lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-emerald-500/40 shadow-2xl relative overflow-hidden">
+                <!-- FORM CHUYỂN KHOẢN 20 NGÂN HÀNG NAPAS 24/7 -->
+                <div id="napasTransferSection" class="lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-blue-500/40 shadow-2xl relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/20">
                     <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
                         <div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
-                                CORE WALLET API v1.0 • IDEMPOTENCY READY
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
+                                NAPAS 24/7 LIÊN NGÂN HÀNG SIÊU TỐC
                             </span>
-                            <h2 class="text-xl sm:text-2xl font-black text-white mt-1">Chuyển Tiền Liên Website Hệ Sinh Thái</h2>
-                            <p class="text-xs text-slate-400">Giao tiếp qua Core Wallet & Realtime Socket Server. Tự động tra cứu khi nhập đủ 12 ký tự STK.</p>
+                            <h2 class="text-xl sm:text-2xl font-black text-white mt-1">Chuyển Khoản Ngân Hàng Napas 24/7</h2>
+                            <p class="text-xs text-slate-400">Chuyển tiền nhanh liên ngân hàng tới 20 ngân hàng lớn: Vietcombank, MB, Techcombank, VPBank, ACB, BIDV, CTG,...</p>
                         </div>
-                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold">
                             <i data-lucide="send" class="w-6 h-6"></i>
                         </div>
                     </div>
@@ -454,140 +415,74 @@
                     <!-- Available Balance Alert -->
                     <div class="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs text-slate-400">Số dư khả dụng người gửi (W03889968688):</div>
+                            <div class="text-xs text-slate-400">Số dư ví chính khả dụng:</div>
                             <div class="text-xl font-black text-emerald-400 font-mono val-available-balance">100.000.000 đ</div>
                         </div>
                         <div class="text-left sm:text-right">
                             <div class="text-[11px] text-amber-400 font-medium">
                                 <i data-lucide="lock" class="w-3 h-3 inline"></i> Đang trong sổ tiết kiệm: <span class="font-mono font-bold val-locked-balance">0 đ</span>
                             </div>
-                            <div class="text-[10px] text-slate-500">(Rút tiết kiệm nếu cần thêm vốn chuyển khoản)</div>
+                            <div class="text-[10px] text-slate-500">Phí chuyển tiền: <strong class="text-emerald-400">0 VNĐ (Miễn Phí 100%)</strong></div>
                         </div>
                     </div>
 
-                    <!-- Quick Pick Accounts in Ecosystem -->
-                    <div class="mb-5 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800">
-                        <div class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
-                            <span class="flex items-center gap-1.5">
-                                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i> Chọn nhanh STK website con trong hệ sinh thái:
-                            </span>
-                            <span class="text-[10px] text-slate-500">1-Click điền ngay</span>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="ecosystemQuickPickerContainer">
-                            <!-- Injected by app.js -->
-                        </div>
-                    </div>
-
-                    <!-- Cross-Web Form -->
-                    <form onsubmit="event.preventDefault(); app.executeCrossWebTransfer();" class="space-y-4">
+                    <form onsubmit="event.preventDefault(); app.executeTransfer();" class="space-y-4">
+                        <!-- Chọn Ngân Hàng Thụ Hưởng -->
                         <div>
-                            <div class="flex items-center justify-between mb-1.5">
-                                <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                                    <span>Số Tài Khoản / User ID Người Nhận</span>
-                                    <span class="text-[10px] text-emerald-400 font-normal">(STK Liên Web / Cross-App Hub: OKX, Binance, MB, Web Shop...)</span>
-                                </label>
-                                <span id="stkCharCounter" class="text-[11px] font-mono text-slate-400 font-bold">0/30</span>
-                            </div>
-                            <div class="relative">
-                                <input id="crossWebStkInput" type="text" maxlength="30" placeholder="Ví dụ: OKX520061041, BINANCE888, W01829102948..." class="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-base font-mono font-bold uppercase tracking-wider focus:outline-none focus:border-emerald-500" required>
-                                <div id="stkLookupSpinner" class="hidden absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-2 text-xs text-emerald-400 font-semibold">
-                                    <span class="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></span>
-                                    <span>Tra cứu Hub & API...</span>
-                                </div>
-                            </div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Ngân Hàng Thụ Hưởng (20 Ngân Hàng)</label>
+                            <select id="transferBankSelect" class="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-semibold focus:outline-none focus:border-blue-500">
+                                <!-- Injected from data.js -->
+                            </select>
                         </div>
 
-                        <!-- HỘP THÔNG TIN NGƯỜI NHẬN SAU KHI TRA CỨU API -->
-                        <div id="lookupResultContainer" class="hidden">
-                            <!-- Injected dynamically via JS -->
+                        <!-- Số Tài Khoản Thụ Hưởng -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tài Khoản Thụ Hưởng</label>
+                            <input id="transferAccInput" type="text" placeholder="Nhập số tài khoản ngân hàng thụ hưởng..." class="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-base font-mono font-bold focus:outline-none focus:border-blue-500" required>
+                        </div>
+
+                        <!-- Tên Người Nhận -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Tên Người Nhận</label>
+                            <input id="transferNameInput" type="text" oninput="this.value = this.value.toUpperCase()" placeholder="Nhập họ và tên (Ví dụ: NGUYEN VAN B)..." class="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm uppercase font-bold focus:outline-none focus:border-blue-500" required>
                         </div>
 
                         <!-- Số Tiền Chuyển -->
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="text-xs font-bold text-slate-300 uppercase tracking-wider">Số Tiền Chuyển (VNĐ)</label>
-                                <span class="text-[11px] text-emerald-400 font-medium">Phí Core Wallet: <strong>0 VNĐ (Miễn phí)</strong></span>
+                                <span class="text-[11px] text-emerald-400 font-medium">Miễn phí giao dịch Napas</span>
                             </div>
-                            <input id="crossWebAmountInput" type="text" placeholder="Nhập số tiền chuyển..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-lg font-mono font-bold focus:outline-none focus:border-emerald-500" required>
-                            
+                            <input id="transferAmountInput" type="text" oninput="app.formatMoneyInput(this)" placeholder="Nhập số tiền cần chuyển..." class="w-full px-4 py-3.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-lg font-mono font-bold focus:outline-none focus:border-blue-500" required>
+
                             <!-- Quick Amount Buttons -->
-                            <div class="flex flex-wrap gap-2 mt-2">
-                                <button type="button" onclick="app.setCrossWebAmount(50000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">50.000 đ</button>
-                                <button type="button" onclick="app.setCrossWebAmount(100000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">100.000 đ</button>
-                                <button type="button" onclick="app.setCrossWebAmount(500000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">500.000 đ</button>
-                                <button type="button" onclick="app.setCrossWebAmount(1000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">1.000.000 đ</button>
-                                <button type="button" onclick="app.setCrossWebAmount(10000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300">10.000.000 đ</button>
-                                <button type="button" onclick="document.getElementById('crossWebAmountInput').value = app.user.availableBalance.toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-xs font-bold text-emerald-400 border border-emerald-500/40">Tất Cả Số Dư</button>
+                            <div class="flex flex-wrap gap-2 mt-2.5">
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = (50000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">50.000 đ</button>
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = (100000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">100.000 đ</button>
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = (500000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">500.000 đ</button>
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = (1000000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">1.000.000 đ</button>
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = (5000000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">5.000.000 đ</button>
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = (10000000).toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 transition">10.000.000 đ</button>
+                                <button type="button" onclick="document.getElementById('transferAmountInput').value = app.user.availableBalance.toLocaleString('vi-VN')" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-xs font-bold text-blue-400 border border-blue-500/40 transition">Tất Cả Số Dư</button>
                             </div>
                         </div>
 
-                        <!-- Nội Dung Chuyển Tiền -->
+                        <!-- Nội Dung -->
                         <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nội Dung Chuyển Tiền</label>
-                            <input id="crossWebNoteInput" type="text" placeholder="NGUYEN VAN A chuyen tien lien website" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
-                        </div>
-
-                        <!-- Submit Button with Double-Click Protection -->
-                        <div class="pt-4">
-                            <button id="btnSubmitCrossWebTransfer" type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-base shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i data-lucide="shield-check" class="w-5 h-5"></i>
-                                <span id="btnSubmitCrossWebText">Xác Nhận Chuyển Tiền Liên Website</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- FORM 2: CHUYỂN KHOẢN 20 NGÂN HÀNG NAPAS 24/7 -->
-                <div id="napasTransferSection" class="hidden lg:col-span-2 glass-panel rounded-3xl p-6 sm:p-8 border-slate-700/80">
-                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
-                        <div>
-                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-400 border border-blue-500/30 uppercase tracking-wider">
-                                NAPAS 24/7 SIÊU TỐC
-                            </span>
-                            <h2 class="text-xl sm:text-2xl font-bold text-white mt-1">Chuyển Khoản 20 Ngân Hàng Lớn</h2>
-                            <p class="text-xs text-slate-400">Chuyển tiền truyền thống tới BVBank, SHB, Nam A Bank, VPBank, Big 4,...</p>
-                        </div>
-                        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                            <i data-lucide="building-2" class="w-6 h-6"></i>
-                        </div>
-                    </div>
-
-                    <form onsubmit="event.preventDefault(); app.executeTransfer();" class="space-y-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Ngân Hàng Thụ Hưởng</label>
-                            <select id="transferBankSelect" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500">
-                                <!-- Injected from data.js -->
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tài Khoản</label>
-                            <input id="transferAccInput" type="text" placeholder="Nhập số tài khoản ngân hàng thụ hưởng" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm font-mono focus:outline-none focus:border-blue-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Tên Người Nhận</label>
-                            <input id="transferNameInput" type="text" placeholder="Nhập họ và tên (vd: TRAN THI B)" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm uppercase focus:outline-none focus:border-blue-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Số Tiền Chuyển (VNĐ)</label>
-                            <input id="transferAmountInput" type="text" placeholder="Nhập số tiền cần chuyển..." class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-lg font-mono font-bold focus:outline-none focus:border-blue-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nội Dung</label>
+                            <label class="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">Nội Dung Chuyển Khoản</label>
                             <input id="transferMsgInput" type="text" placeholder="NGUYEN VAN A chuyen tien" class="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-blue-500">
                         </div>
 
+                        <!-- Nút Xác Nhận -->
                         <div class="pt-4">
-                            <button type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-base shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition">
+                            <button type="submit" class="w-full py-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 text-white font-black text-base shadow-xl shadow-blue-600/30 flex items-center justify-center gap-2 transition transform active:scale-95">
                                 <i data-lucide="shield-check" class="w-5 h-5"></i>
-                                Xác Nhận Chuyển Khoản Napas
+                                <span>Xác Nhận Chuyển Khoản Napas 24/7</span>
                             </button>
                         </div>
                     </form>
                 </div>
+
 
                 <!-- SIDEBAR: THÔNG TIN HỆ SINH THÁI & KẾT NỐI REALTIME -->
                 <div class="space-y-6">

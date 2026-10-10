@@ -4,7 +4,7 @@ class BankApp {
         window.app = this;
         this.user = this.loadUser();
         this.currentTab = 'dashboard';
-        this.transferMode = 'CROSS_WEB'; // 'CROSS_WEB' hoặc 'NAPAS_BANK'
+        this.transferMode = 'NAPAS_BANK'; // Mặc định Napas 24/7 (Đã bỏ chuyển liên web)
         this.capitalTransferDir = 'IN'; // 'IN' hoặc 'OUT'
         this.selectedBankForDeposit = null;
         this.selectedBankForTransfer = null;
