@@ -1,9 +1,11 @@
 // Main Application Controller for DigiBank Prime 4.0 & Central Payment Gateway Hub (http://localhost:9000)
 class BankApp {
     constructor() {
+        window.app = this;
         this.user = this.loadUser();
         this.currentTab = 'dashboard';
         this.transferMode = 'CROSS_WEB'; // 'CROSS_WEB' hoặc 'NAPAS_BANK'
+        this.capitalTransferDir = 'IN'; // 'IN' hoặc 'OUT'
         this.selectedBankForDeposit = null;
         this.selectedBankForTransfer = null;
         this.activeFilter = 'ALL';
@@ -103,7 +105,14 @@ class BankApp {
             });
         }
 
-        // 3️⃣ Init Chart.js after DOM load
+        // 3️⃣ Subscribe to Capital Desk P2P Lending Engine
+        if (typeof capitalManager !== 'undefined' && capitalManager) {
+            capitalManager.subscribe((stats) => {
+                this.renderCapitalDesk(stats);
+            });
+        }
+
+        // 4️⃣ Init Chart.js after DOM load
         setTimeout(() => {
             if (window.analyticsManager && typeof savingsManager !== 'undefined') {
                 const stats = savingsManager.calculateGlobalStats();
@@ -1032,6 +1041,10 @@ class BankApp {
         if (tabId === 'analytics' && window.analyticsManager && typeof savingsManager !== 'undefined') {
             const stats = savingsManager.calculateGlobalStats();
             analyticsManager.initCharts(this.user, stats);
+        }
+
+        if (tabId === 'capital' && typeof capitalManager !== 'undefined') {
+            this.renderCapitalDesk();
         }
 
         soundManager.playClick();
@@ -2010,6 +2023,856 @@ class BankApp {
                 this.txSearchQuery = e.target.value.trim();
                 this.renderTransactions();
             });
+        }
+    }
+
+    // ========================================================================
+    // CAPITAL TREASURY DESK & P2P LENDING SUITE (SÀN VỐN & TÍN DỤNG 4.0)
+    // ========================================================================
+
+    renderCapitalDesk(stats) {
+        if (typeof capitalManager === 'undefined' || !capitalManager) return;
+        if (!stats) stats = capitalManager.getSummaryStats();
+
+        // 1. Cập nhật Master 4 KPI Cards
+        const kpiTreasury = document.getElementById('kpiTreasuryBalance');
+        if (kpiTreasury) kpiTreasury.textContent = `${Math.round(stats.treasuryBalance).toLocaleString('vi-VN')} đ`;
+
+        const modalTreasury = document.getElementById('modalTreasuryBalance');
+        if (modalTreasury) modalTreasury.textContent = `${Math.round(stats.treasuryBalance).toLocaleString('vi-VN')} đ`;
+
+        const kpiLoansCap = document.getElementById('kpiActiveLoansCapital');
+        if (kpiLoansCap) kpiLoansCap.textContent = `${Math.round(stats.totalActiveLoansCapital).toLocaleString('vi-VN')} đ`;
+
+        const kpiLoansCount = document.getElementById('kpiActiveLoansCount');
+        if (kpiLoansCount) kpiLoansCount.textContent = `${stats.activeLoanCount} khoản`;
+
+        const kpiDepCap = document.getElementById('kpiDepositsCapitalHeld');
+        if (kpiDepCap) kpiDepCap.textContent = `${Math.round(stats.totalDepositsCapitalHeld).toLocaleString('vi-VN')} đ`;
+
+        const kpiDepCount = document.getElementById('kpiActiveDepositsCount');
+        if (kpiDepCount) kpiDepCount.textContent = `${stats.activeDepositCount} đối tác`;
+
+        const kpiNim = document.getElementById('kpiNetInterestMargin');
+        if (kpiNim) {
+            const prefix = stats.netInterestMargin >= 0 ? '+' : '';
+            kpiNim.textContent = `${prefix}${Math.round(stats.netInterestMargin).toLocaleString('vi-VN')} đ`;
+            kpiNim.className = `text-2xl font-black font-mono ${stats.netInterestMargin >= 0 ? 'text-emerald-400' : 'text-rose-400'}`;
+        }
+
+        const kpiSpread = document.getElementById('kpiInterestSpread');
+        if (kpiSpread) {
+            const spread = (capitalManager.aiConfig.loanRate - capitalManager.aiConfig.depositRate).toFixed(2);
+            kpiSpread.textContent = `~${spread}%/phút`;
+        }
+
+        // Cập nhật số dư ví chính trên header và các thẻ liên quan
+        this.updateHeaderBalances();
+
+        // 2. Cập nhật bảng điều khiển AI Banker Auto-Pilot
+        const aiBadge = document.getElementById('aiStatusBadge');
+        const aiToggle = document.getElementById('aiAutoPilotToggle');
+        if (aiToggle && aiToggle.checked !== stats.aiEnabled) {
+            aiToggle.checked = stats.aiEnabled;
+        }
+        if (aiBadge) {
+            if (stats.aiEnabled) {
+                aiBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse';
+                aiBadge.textContent = 'Đang Bật (Auto)';
+            } else {
+                aiBadge.className = 'px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-800 text-slate-400 border border-slate-700';
+                aiBadge.textContent = 'Đang Tắt';
+            }
+        }
+
+        const dispLoanRate = document.getElementById('aiDisplayLoanRate');
+        if (dispLoanRate) dispLoanRate.textContent = `${capitalManager.aiConfig.loanRate.toFixed(2)}% / phút`;
+
+        const dispDepRate = document.getElementById('aiDisplayDepositRate');
+        if (dispDepRate) dispDepRate.textContent = `${capitalManager.aiConfig.depositRate.toFixed(2)}% / phút`;
+
+        const dispMaxLoan = document.getElementById('aiDisplayMaxLoan');
+        if (dispMaxLoan) dispMaxLoan.textContent = `${Math.round(capitalManager.aiConfig.maxLoanAmount).toLocaleString('vi-VN')} đ`;
+
+        const dispAutoCollect = document.getElementById('aiDisplayAutoCollect');
+        if (dispAutoCollect) {
+            dispAutoCollect.textContent = capitalManager.aiConfig.autoCollect ? 'BẬT (Auto)' : 'TẮT';
+            dispAutoCollect.className = `font-mono font-bold text-xs mt-0.5 block ${capitalManager.aiConfig.autoCollect ? 'text-emerald-400' : 'text-slate-400'}`;
+        }
+
+        // AI Terminal Logs
+        this.renderAiLogsList();
+
+        // 3. Nút Thu nợ tất cả kỳ đến hạn
+        const btnCollectAllCount = document.getElementById('btnCollectAllCount');
+        const btnCollectAll = document.getElementById('btnCollectAllDue');
+        if (btnCollectAllCount) btnCollectAllCount.textContent = stats.dueInstallmentsCount || 0;
+        if (btnCollectAll) {
+            if (stats.dueInstallmentsCount > 0) {
+                btnCollectAll.classList.remove('opacity-60', 'pointer-events-none');
+                btnCollectAll.classList.add('shadow-amber-500/40');
+            } else {
+                btnCollectAll.classList.add('opacity-60');
+            }
+        }
+
+        // Cập nhật số lượng đếm trên tiêu đề các bảng
+        const pLoansCount = document.getElementById('pendingLoansCount');
+        if (pLoansCount) pLoansCount.textContent = stats.pendingLoanCount;
+
+        const aLoansCount = document.getElementById('activeLoansCount');
+        if (aLoansCount) aLoansCount.textContent = stats.activeLoanCount;
+
+        const pDepCount = document.getElementById('pendingDepositsCount');
+        if (pDepCount) pDepCount.textContent = stats.pendingDepositCount;
+
+        const aDepCount = document.getElementById('activeDepositsCount');
+        if (aDepCount) aDepCount.textContent = stats.activeDepositCount;
+
+        // 4. Render danh sách hồ sơ chi tiết
+        this.renderPendingLoansList();
+        this.renderActiveLoansList();
+        this.renderPendingDepositsList();
+        this.renderActiveDepositsList();
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    renderPendingLoansList() {
+        const container = document.getElementById('pendingLoansContainer');
+        if (!container || typeof capitalManager === 'undefined') return;
+
+        const requests = capitalManager.pendingLoanRequests;
+        if (requests.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400">
+                    <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-40 text-slate-500"></i>
+                    <p class="text-xs font-semibold">Chưa có hồ sơ xin vay mới</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Thị trường tự động tìm kiếm và gửi hồ sơ doanh nghiệp sau mỗi 15-20 giây...</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = requests.map(req => {
+            const initialRate = req.suggestedRate || 2.50;
+            const term = req.termInstallments || 10;
+            const amount = req.requestedAmount;
+            const ratePerCycle = (initialRate / 100) * (20 / 60);
+            const interestPerCycle = Math.round(amount * ratePerCycle);
+            const principalPerCycle = Math.round(amount / term);
+            const totalPerCycle = principalPerCycle + interestPerCycle;
+            const totalInterest = interestPerCycle * term;
+            const totalReturn = amount + totalInterest;
+
+            const typeLabel = req.applicantType === 'BUSINESS' ? 'Doanh Nghiệp' : 'Cá Nhân';
+            const iconName = req.avatarIcon || 'building-2';
+
+            return `
+                <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-amber-500/40 transition-all space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold flex-shrink-0">
+                                <i data-lucide="${iconName}" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-white text-xs sm:text-sm leading-tight">${req.applicantName}</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
+                                    <span class="px-1.5 py-0.5 rounded bg-slate-800 text-amber-300 text-[10px] font-semibold border border-slate-700">${typeLabel}</span>
+                                    <span>${req.businessSector || 'Kinh Doanh'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            Điểm: ${req.creditScore || 780}
+                        </span>
+                    </div>
+
+                    <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/80 text-[11px] text-slate-300 italic">
+                        "${req.purpose || 'Cần bổ sung nguồn vốn lưu động kinh doanh'}"
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">Số Tiền Muốn Vay:</span>
+                            <span class="font-mono font-black text-amber-400 text-sm mt-0.5 block">${amount.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                        <div class="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">Thời Hạn Trả (20s / kỳ):</span>
+                            <span class="font-mono font-bold text-white text-xs mt-0.5 block">${term} kỳ (${term * 20}s)</span>
+                        </div>
+                    </div>
+
+                    <!-- Slider Điều Chỉnh Lãi Suất (1.5% đến 4.0%/phút) -->
+                    <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                                <i data-lucide="sliders" class="w-3.5 h-3.5 text-amber-400"></i>
+                                Lãi Suất Áp Dụng:
+                            </span>
+                            <span id="loanRateVal_${req.id}" class="font-mono font-black text-amber-400">${initialRate.toFixed(2)}% / phút</span>
+                        </div>
+                        <input type="range" id="loanSlider_${req.id}" min="1.50" max="4.00" step="0.10" value="${initialRate.toFixed(2)}"
+                            oninput="app.onLoanSliderChange(this, '${req.id}', ${amount}, ${term})" class="rate-range-slider">
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                            <span>Tối thiểu: 1.50%/p</span>
+                            <span class="text-amber-400">Khuyên dùng</span>
+                            <span>Tối đa: 4.00%/p</span>
+                        </div>
+                    </div>
+
+                    <!-- Dự Toán Dòng Tiền & Lợi Nhuận Thời Gian Thực -->
+                    <div class="p-2.5 rounded-xl bg-slate-950/90 border border-amber-500/20 space-y-1 text-[11px] font-mono">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Trả mỗi kỳ 20s:</span>
+                            <span id="loanCyclePreview_${req.id}" class="text-amber-300 font-bold">${totalPerCycle.toLocaleString('vi-VN')} đ / 20s (Lãi: +${interestPerCycle.toLocaleString('vi-VN')} đ)</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Tổng lãi thu về (${term} kỳ):</span>
+                            <span id="loanProfitPreview_${req.id}" class="text-emerald-400 font-bold">+${totalInterest.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-800/80">
+                            <span class="text-slate-300 font-bold">Tổng thu gốc + lãi:</span>
+                            <span id="loanTotalReturn_${req.id}" class="text-white font-bold">${totalReturn.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Nút Thao Tác -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <button onclick="app.approveLoan('${req.id}')" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-900/30 transition flex items-center justify-center gap-1.5 transform active:scale-95">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            <span>Duyệt Cho Vay</span>
+                        </button>
+                        <button onclick="app.rejectLoan('${req.id}')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-400 border border-slate-700 font-bold text-xs transition flex items-center justify-center gap-1">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                            <span>Từ Chối</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    onLoanSliderChange(slider, reqId, amount, term) {
+        const rate = parseFloat(slider.value) || 2.50;
+        const rateValEl = document.getElementById(`loanRateVal_${reqId}`);
+        if (rateValEl) rateValEl.textContent = `${rate.toFixed(2)}% / phút`;
+
+        const ratePerCycle = (rate / 100) * (20 / 60);
+        const interestPerCycle = Math.round(amount * ratePerCycle);
+        const principalPerCycle = Math.round(amount / term);
+        const totalPerCycle = principalPerCycle + interestPerCycle;
+        const totalProfit = interestPerCycle * term;
+        const totalReturn = amount + totalProfit;
+
+        const profitEl = document.getElementById(`loanProfitPreview_${reqId}`);
+        if (profitEl) profitEl.textContent = `+${totalProfit.toLocaleString('vi-VN')} đ`;
+
+        const cycleEl = document.getElementById(`loanCyclePreview_${reqId}`);
+        if (cycleEl) cycleEl.textContent = `${totalPerCycle.toLocaleString('vi-VN')} đ / 20s (Lãi: +${interestPerCycle.toLocaleString('vi-VN')} đ)`;
+
+        const totalReturnEl = document.getElementById(`loanTotalReturn_${reqId}`);
+        if (totalReturnEl) totalReturnEl.textContent = `${totalReturn.toLocaleString('vi-VN')} đ`;
+    }
+
+    approveLoan(requestId) {
+        const slider = document.getElementById(`loanSlider_${requestId}`);
+        const customRate = slider ? parseFloat(slider.value) : undefined;
+
+        try {
+            const loan = capitalManager.approveLoan(requestId, customRate);
+            this.showToast(`🎉 Đã duyệt cho vay ${loan.amount.toLocaleString('vi-VN')} đ tới [${loan.borrowerName}] với lãi suất ${loan.rate.toFixed(2)}%/phút! Khách sẽ trả nợ mỗi 20 giây.`, 'success');
+            soundManager.playTingTing();
+            this.triggerConfetti();
+        } catch (e) {
+            this.showToast(e.message, 'error', 6000);
+            soundManager.playError();
+        }
+    }
+
+    rejectLoan(requestId) {
+        capitalManager.rejectLoan(requestId);
+        this.showToast("Đã từ chối hồ sơ xin vay.", "info");
+    }
+
+    renderActiveLoansList() {
+        const container = document.getElementById('activeLoansContainer');
+        if (!container || typeof capitalManager === 'undefined') return;
+
+        const loans = capitalManager.activeLoans;
+        if (loans.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400">
+                    <i data-lucide="layers" class="w-10 h-10 mx-auto mb-2 opacity-40 text-slate-500"></i>
+                    <p class="text-xs font-semibold">Hiện chưa có hợp đồng vay vốn nào đang trả nợ</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Duyệt hồ sơ ở danh sách bên trái hoặc bật AI Banker để tự động giải ngân cho vay</p>
+                </div>
+            `;
+            return;
+        }
+
+        const now = Date.now();
+
+        container.innerHTML = loans.map(loan => {
+            const term = loan.termInstallments;
+            const collectedCount = loan.installments.filter(i => i.status === 'COLLECTED').length;
+            const remainingCount = term - collectedCount;
+            const pct = Math.round((collectedCount / term) * 100);
+
+            // Tìm kỳ tiếp theo chưa thu
+            const nextInst = loan.installments.find(i => i.status !== 'COLLECTED');
+            let nextStatusHtml = '';
+            let dueInstallment = null;
+
+            if (nextInst) {
+                if (nextInst.status === 'DUE') {
+                    dueInstallment = nextInst;
+                    nextStatusHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">⚡ KỲ #${nextInst.index} ĐÃ ĐẾN HẠN!</span>`;
+                } else {
+                    const waitSec = Math.max(0, Math.ceil((nextInst.dueAt - now) / 1000));
+                    nextStatusHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">Kỳ #${nextInst.index} đến hạn sau: <b class="font-bold">${waitSec}s</b></span>`;
+                }
+            } else {
+                nextStatusHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">ĐÃ THU HẾT KỲ</span>`;
+            }
+
+            // Tạo các pill trạng thái kỳ
+            const pillsHtml = loan.installments.map(inst => {
+                if (inst.status === 'COLLECTED') {
+                    return `<span class="inst-pill-collected" title="Kỳ #${inst.index}: Đã thu hồi">+${inst.index}✓</span>`;
+                } else if (inst.status === 'DUE') {
+                    return `<button onclick="app.collectLoanInstallment('${loan.id}', ${inst.index})" class="inst-pill-due cursor-pointer animate-bounce" title="Kỳ #${inst.index} đã đến hạn! Nhấp để thu ngay">#${inst.index} Thu!</button>`;
+                } else {
+                    const waitSec = Math.max(0, Math.ceil((inst.dueAt - now) / 1000));
+                    return `<span class="inst-pill-pending" title="Kỳ #${inst.index}: Đợi ${waitSec}s">#${inst.index}</span>`;
+                }
+            }).join('');
+
+            return `
+                <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/30 transition-all space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-white text-xs sm:text-sm">${loan.borrowerName}</span>
+                                <span class="px-1.5 py-0.2 rounded bg-slate-800 text-[10px] text-amber-400 border border-slate-700 font-mono font-bold">${loan.rate.toFixed(2)}%/phút</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">${loan.businessSector || 'Doanh Nghiệp'} • HĐ: #${loan.id}</div>
+                        </div>
+                        <div>
+                            ${nextStatusHtml}
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="space-y-1">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-400">Tiến độ thu nợ: <b class="text-white">${collectedCount}/${term} kỳ</b></span>
+                            <span class="text-emerald-400 font-mono font-bold">${pct}%</span>
+                        </div>
+                        <div class="w-full h-2 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                            <div class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Installments Timeline Grid -->
+                    <div class="space-y-1.5">
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Danh Sách Các Kỳ Trả Nợ (20 Giây / Kỳ):</div>
+                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto no-scrollbar">
+                            ${pillsHtml}
+                        </div>
+                    </div>
+
+                    <!-- Dòng tiền tóm tắt & Nút Thu Nợ Nhanh -->
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs">
+                        <div class="font-mono">
+                            <span class="text-slate-400 block text-[10px]">Mỗi kỳ thu về:</span>
+                            <span class="text-amber-300 font-bold">${loan.totalInstallmentAmount.toLocaleString('vi-VN')} đ</span>
+                        </div>
+
+                        <div>
+                            ${dueInstallment ? `
+                                <button onclick="app.collectLoanInstallment('${loan.id}', ${dueInstallment.index})" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/20 transition flex items-center gap-1.5 transform active:scale-95 animate-pulse">
+                                    <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                                    <span>Thu Nợ Kỳ #${dueInstallment.index} (+${dueInstallment.totalAmount.toLocaleString('vi-VN')} đ)</span>
+                                </button>
+                            ` : `
+                                <div class="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                    <span>Khách đang chuẩn bị trả kỳ kế tiếp...</span>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    collectLoanInstallment(loanId, installmentIndex) {
+        try {
+            const res = capitalManager.collectInstallment(loanId, installmentIndex);
+            this.showToast(`💰 Đã thu hồi thành công Kỳ #${installmentIndex}: +${res.amountCollected.toLocaleString('vi-VN')} đ (Lãi ròng: +${res.interest.toLocaleString('vi-VN')} đ)! Tiền đã nhập vào kho vốn.`, 'success');
+            soundManager.playTingTing();
+            if (res.remainingInstallments === 0) {
+                this.triggerConfetti();
+                this.showToast("🎉 Chúc mừng! Hợp đồng vay vốn đã được tất toán trọn vẹn cả gốc và lãi!", "success", 7000);
+            }
+        } catch (e) {
+            this.showToast(e.message, 'warning');
+            soundManager.playError();
+        }
+    }
+
+    collectAllDueLoanInstallments() {
+        try {
+            const res = capitalManager.collectAllMaturedInstallments();
+            this.showToast(`⚡ Thu nợ thành công tất cả ${res.collectedCount} kỳ đến hạn! Tổng tiền nạp kho: +${Math.round(res.totalCollected).toLocaleString('vi-VN')} đ (Lãi ròng: +${Math.round(res.totalInterest).toLocaleString('vi-VN')} đ).`, 'success', 6000);
+            soundManager.playTingTing();
+            this.triggerConfetti();
+        } catch (e) {
+            this.showToast(e.message, 'info');
+        }
+    }
+
+    renderPendingDepositsList() {
+        const container = document.getElementById('pendingDepositsContainer');
+        if (!container || typeof capitalManager === 'undefined') return;
+
+        const offers = capitalManager.pendingDepositOffers;
+        if (offers.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400">
+                    <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-40 text-slate-500"></i>
+                    <p class="text-xs font-semibold">Chưa có đơn gửi vốn mới</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Khách hàng & đối tác sẽ tự gửi tiền thêm vào ngân hàng theo thời gian thực...</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = offers.map(offer => {
+            const initialRate = offer.requestedRate || 0.80;
+            const term = offer.termInstallments || 10;
+            const amount = offer.depositAmount;
+            const ratePerCycle = (initialRate / 100) * (20 / 60);
+            const interestPerCycle = Math.round(amount * ratePerCycle);
+            const principalPerCycle = Math.round(amount / term);
+            const totalPerCycle = principalPerCycle + interestPerCycle;
+            const totalInterest = interestPerCycle * term;
+
+            return `
+                <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-blue-500/40 transition-all space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold flex-shrink-0">
+                                <i data-lucide="download" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <div class="font-bold text-white text-xs sm:text-sm leading-tight">${offer.depositorName}</div>
+                                <div class="text-[11px] text-slate-400 mt-0.5">
+                                    <span class="px-1.5 py-0.5 rounded bg-slate-800 text-blue-300 text-[10px] font-semibold border border-slate-700">${offer.depositorType === 'ENTERPRISE' ? 'Doanh Nghiệp Gửi Vốn' : 'Khách Hàng Cá Nhân VIP'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                            Gửi ${term} kỳ @ 20s
+                        </span>
+                    </div>
+
+                    <div class="p-2 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
+                        <span class="text-slate-400">Số Tiền Khách Muốn Gửi:</span>
+                        <span class="font-mono font-black text-emerald-400 text-sm">+${amount.toLocaleString('vi-VN')} đ</span>
+                    </div>
+
+                    <!-- Slider Điều Chỉnh Lãi Suất Trả Cho Khách (0.5% - 2.0%/phút) -->
+                    <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-300 font-bold flex items-center gap-1.5">
+                                <i data-lucide="percent" class="w-3.5 h-3.5 text-blue-400"></i>
+                                Lãi Suất Trả Khách:
+                            </span>
+                            <span id="depositRateVal_${offer.id}" class="font-mono font-black text-emerald-400">${initialRate.toFixed(2)}% / phút</span>
+                        </div>
+                        <input type="range" id="depositSlider_${offer.id}" min="0.50" max="2.00" step="0.05" value="${initialRate.toFixed(2)}"
+                            oninput="app.onDepositSliderChange(this, '${offer.id}', ${amount}, ${term})" class="rate-range-slider rate-range-slider-deposit">
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                            <span>Tối thiểu: 0.50%/p</span>
+                            <span class="text-blue-300">Khuyên dùng</span>
+                            <span>Tối đa: 2.00%/p</span>
+                        </div>
+                    </div>
+
+                    <!-- Dự Toán Chi Phí Lãi Trả Khách -->
+                    <div class="p-2.5 rounded-xl bg-slate-950/90 border border-blue-500/20 space-y-1 text-[11px] font-mono">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Trả mỗi kỳ 20s:</span>
+                            <span id="depositCyclePreview_${offer.id}" class="text-blue-300 font-bold">${totalPerCycle.toLocaleString('vi-VN')} đ (Lãi: ${interestPerCycle.toLocaleString('vi-VN')} đ)</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-400">Tổng chi phí lãi:</span>
+                            <span id="depositCostPreview_${offer.id}" class="text-rose-400 font-bold">-${totalInterest.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Nút Thao Tác -->
+                    <div class="flex items-center gap-2 pt-1">
+                        <button onclick="app.acceptDeposit('${offer.id}')" class="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-900/30 transition flex items-center justify-center gap-1.5 transform active:scale-95">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            <span>Tiếp Nhận Vốn Gửi</span>
+                        </button>
+                        <button onclick="app.rejectDeposit('${offer.id}')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-400 border border-slate-700 font-bold text-xs transition flex items-center justify-center gap-1">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                            <span>Từ Chối</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    onDepositSliderChange(slider, offerId, amount, term) {
+        const rate = parseFloat(slider.value) || 0.80;
+        const rateValEl = document.getElementById(`depositRateVal_${offerId}`);
+        if (rateValEl) rateValEl.textContent = `${rate.toFixed(2)}% / phút`;
+
+        const ratePerCycle = (rate / 100) * (20 / 60);
+        const interestPerCycle = Math.round(amount * ratePerCycle);
+        const principalPerCycle = Math.round(amount / term);
+        const totalPerCycle = principalPerCycle + interestPerCycle;
+        const totalCost = interestPerCycle * term;
+
+        const cycleEl = document.getElementById(`depositCyclePreview_${offerId}`);
+        if (cycleEl) cycleEl.textContent = `${totalPerCycle.toLocaleString('vi-VN')} đ (Lãi: ${interestPerCycle.toLocaleString('vi-VN')} đ)`;
+
+        const costEl = document.getElementById(`depositCostPreview_${offerId}`);
+        if (costEl) costEl.textContent = `-${totalCost.toLocaleString('vi-VN')} đ`;
+    }
+
+    acceptDeposit(offerId) {
+        const slider = document.getElementById(`depositSlider_${offerId}`);
+        const customRate = slider ? parseFloat(slider.value) : undefined;
+
+        try {
+            const dep = capitalManager.acceptDeposit(offerId, customRate);
+            this.showToast(`💎 Đã tiếp nhận thành công +${dep.amount.toLocaleString('vi-VN')} đ vốn gửi từ [${dep.depositorName}]! Kho vốn cho vay đã tăng thêm.`, 'success');
+            soundManager.playTingTing();
+            this.triggerConfetti();
+        } catch (e) {
+            this.showToast(e.message, 'error');
+            soundManager.playError();
+        }
+    }
+
+    rejectDeposit(offerId) {
+        capitalManager.rejectDeposit(offerId);
+        this.showToast("Đã từ chối đơn gửi vốn.", "info");
+    }
+
+    renderActiveDepositsList() {
+        const container = document.getElementById('activeDepositsContainer');
+        if (!container || typeof capitalManager === 'undefined') return;
+
+        const deposits = capitalManager.activeDeposits;
+        if (deposits.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 text-center text-slate-400">
+                    <i data-lucide="wallet-cards" class="w-10 h-10 mx-auto mb-2 opacity-40 text-slate-500"></i>
+                    <p class="text-xs font-semibold">Chưa có hợp đồng tiền gửi nào đang nắm giữ</p>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Tiếp nhận đơn gửi vốn ở cột bên trái để tăng thanh khoản cho kho quỹ</p>
+                </div>
+            `;
+            return;
+        }
+
+        const now = Date.now();
+
+        container.innerHTML = deposits.map(dep => {
+            const term = dep.termInstallments;
+            const paidCount = dep.installments.filter(i => i.status === 'PAID').length;
+            const remainingPrincipal = dep.amount - (dep.principalReturned || 0);
+
+            // Tìm kỳ tiếp theo đến hạn
+            const nextInst = dep.installments.find(i => i.status !== 'PAID');
+            let nextStatusHtml = '';
+            let dueInstallment = null;
+
+            if (nextInst) {
+                if (nextInst.status === 'DUE') {
+                    dueInstallment = nextInst;
+                    nextStatusHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">KỲ #${nextInst.index} ĐẾN HẠN TRẢ</span>`;
+                } else {
+                    const waitSec = Math.max(0, Math.ceil((nextInst.dueAt - now) / 1000));
+                    nextStatusHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-mono text-blue-400 bg-blue-500/10 border border-blue-500/20">Kỳ #${nextInst.index} đến hạn sau: <b class="font-bold">${waitSec}s</b></span>`;
+                }
+            } else {
+                nextStatusHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">ĐÃ TRẢ HẾT KỲ</span>`;
+            }
+
+            return `
+                <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 hover:border-blue-500/30 transition-all space-y-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-white text-xs sm:text-sm">${dep.depositorName}</span>
+                                <span class="px-1.5 py-0.2 rounded bg-slate-800 text-[10px] text-emerald-400 border border-slate-700 font-mono font-bold">Trả lãi: ${dep.rate.toFixed(2)}%/phút</span>
+                            </div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">Tiền gửi gốc: ${dep.amount.toLocaleString('vi-VN')} đ • HĐ: #${dep.id}</div>
+                        </div>
+                        <div>
+                            ${nextStatusHtml}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">Tiền Gốc Còn Lại Chưa Trả:</span>
+                            <span class="font-mono font-bold text-blue-300 text-xs mt-0.5 block">${remainingPrincipal.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                        <div class="p-2 rounded-xl bg-slate-950 border border-slate-800">
+                            <span class="text-[10px] text-slate-400 block">Tiến Độ Thanh Toán Kỳ:</span>
+                            <span class="font-mono font-bold text-white text-xs mt-0.5 block">${paidCount}/${term} kỳ (${Math.round((paidCount/term)*100)}%)</span>
+                        </div>
+                    </div>
+
+                    <!-- Thao tác trả kỳ hoặc tất toán ngay toàn bộ -->
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800/80 text-xs gap-2">
+                        <div>
+                            ${dueInstallment ? `
+                                <button onclick="app.payDepositInstallment('${dep.id}', ${dueInstallment.index})" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-900/30 transition flex items-center gap-1.5 transform active:scale-95">
+                                    <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                                    <span>Thanh Toán Kỳ #${dueInstallment.index} (-${dueInstallment.totalAmount.toLocaleString('vi-VN')} đ)</span>
+                                </button>
+                            ` : `
+                                <span class="text-[11px] text-slate-400 font-mono">Kỳ kế tiếp chưa đến hạn</span>
+                            `}
+                        </div>
+
+                        <button onclick="app.settleDepositEarly('${dep.id}')" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-rose-950/60 hover:text-rose-300 text-slate-300 border border-slate-700 font-bold text-xs transition flex items-center gap-1">
+                            <i data-lucide="check-circle" class="w-3.5 h-3.5 text-rose-400"></i>
+                            <span>Tất Toán Ngay (Toàn Bộ)</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    payDepositInstallment(contractId, installmentIndex) {
+        try {
+            const res = capitalManager.payDepositInstallment(contractId, installmentIndex);
+            this.showToast(`📤 Đã thanh toán Kỳ #${installmentIndex} cho khách gửi vốn: -${res.paidAmount.toLocaleString('vi-VN')} đ!`, 'info');
+            soundManager.playClick();
+        } catch (e) {
+            this.showToast(e.message, 'error');
+            soundManager.playError();
+        }
+    }
+
+    settleDepositEarly(contractId) {
+        if (!confirm("Bạn có chắc chắn muốn tất toán ngay toàn bộ hợp đồng tiền gửi này cho khách?")) return;
+
+        try {
+            const res = capitalManager.settleDepositEarly(contractId);
+            this.showToast(`🏁 Đã tất toán ngay toàn bộ tiền gửi cho khách: -${res.totalPayout.toLocaleString('vi-VN')} đ (Gốc: ${res.remainingPrincipal.toLocaleString('vi-VN')} đ, Lãi: ${res.accruedInterest.toLocaleString('vi-VN')} đ)!`, 'success');
+            soundManager.playTingTing();
+        } catch (e) {
+            this.showToast(e.message, 'error');
+            soundManager.playError();
+        }
+    }
+
+    renderAiLogsList() {
+        const container = document.getElementById('aiActivityLogsContainer');
+        if (!container || typeof capitalManager === 'undefined') return;
+
+        const logs = capitalManager.aiLogs;
+        if (logs.length === 0) {
+            container.innerHTML = `<div class="text-slate-500 italic text-[11px]">Đang chờ sự kiện thị trường...</div>`;
+            return;
+        }
+
+        container.innerHTML = logs.map(l => `
+            <div class="font-mono text-[11px] leading-relaxed flex items-start gap-2 py-0.5 border-b border-slate-900/60">
+                <span class="text-slate-500 text-[10px] shrink-0 font-bold">[${l.time}]</span>
+                <span class="text-slate-300">${l.message}</span>
+            </div>
+        `).join('');
+    }
+
+    // ========================================================================
+    // AI BANKER AUTO-PILOT SETTINGS & TOGGLE
+    // ========================================================================
+
+    toggleAiBanker(checked) {
+        if (typeof capitalManager === 'undefined') return;
+        capitalManager.toggleAi(checked);
+        this.showToast(
+            checked ? '🤖 Đã BẬT AI Banker Auto-Pilot! Hệ thống sẽ tự động duyệt vay, nhận tiền gửi và gom nợ 20s.' : '⏸ Đã TẮT AI Banker Auto-Pilot.',
+            checked ? 'success' : 'info'
+        );
+        if (checked) soundManager.playTingTing();
+    }
+
+    openAiConfigModal() {
+        if (typeof capitalManager === 'undefined') return;
+        const modal = document.getElementById('aiConfigModal');
+        if (!modal) return;
+
+        const cfg = capitalManager.aiConfig;
+        const loanInput = document.getElementById('cfgLoanRateInput');
+        const loanVal = document.getElementById('cfgLoanRateVal');
+        if (loanInput) loanInput.value = cfg.loanRate;
+        if (loanVal) loanVal.textContent = `${cfg.loanRate.toFixed(2)}% / phút`;
+
+        const maxInput = document.getElementById('cfgMaxLoanInput');
+        if (maxInput) maxInput.value = cfg.maxLoanAmount.toLocaleString('vi-VN');
+
+        const depInput = document.getElementById('cfgDepositRateInput');
+        const depVal = document.getElementById('cfgDepositRateVal');
+        if (depInput) depInput.value = cfg.depositRate;
+        if (depVal) depVal.textContent = `${cfg.depositRate.toFixed(2)}% / phút`;
+
+        const autoCollectInput = document.getElementById('cfgAutoCollectInput');
+        if (autoCollectInput) autoCollectInput.checked = !!cfg.autoCollect;
+
+        modal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    closeAiConfigModal() {
+        const modal = document.getElementById('aiConfigModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    saveAiConfigForm() {
+        if (typeof capitalManager === 'undefined') return;
+
+        const loanRate = parseFloat(document.getElementById('cfgLoanRateInput')?.value) || 2.80;
+        const maxLoanAmount = parseFloat((document.getElementById('cfgMaxLoanInput')?.value || '').replace(/\D/g, '')) || 150000000;
+        const depositRate = parseFloat(document.getElementById('cfgDepositRateInput')?.value) || 0.80;
+        const autoCollect = !!document.getElementById('cfgAutoCollectInput')?.checked;
+
+        capitalManager.updateAiConfig({
+            loanRate,
+            maxLoanAmount,
+            depositRate,
+            autoCollect
+        });
+
+        this.closeAiConfigModal();
+        this.showToast('✅ Đã lưu cấu hình AI Banker Auto-Pilot thành công!', 'success');
+        soundManager.playTingTing();
+    }
+
+    formatMoneyInput(inputEl) {
+        if (!inputEl) return;
+        const raw = inputEl.value.replace(/\D/g, '');
+        if (!raw) {
+            inputEl.value = '';
+            return;
+        }
+        const num = parseInt(raw, 10);
+        inputEl.value = isNaN(num) ? '' : num.toLocaleString('vi-VN');
+    }
+
+    // ========================================================================
+    // LUÂN CHUYỂN VỐN KHO TÍN DỤNG (TWO-WAY CAPITAL TRANSFER MODAL)
+    // ========================================================================
+
+    openCapitalTransferModal(direction = 'IN') {
+        const modal = document.getElementById('capitalTransferModal');
+        if (!modal) return;
+
+        this.setCapitalTransferDirection(direction);
+
+        const input = document.getElementById('capitalTransferAmountInput');
+        if (input) input.value = '';
+
+        const modalTreasury = document.getElementById('modalTreasuryBalance');
+        if (modalTreasury && typeof capitalManager !== 'undefined') {
+            modalTreasury.textContent = `${Math.round(capitalManager.treasuryBalance).toLocaleString('vi-VN')} đ`;
+        }
+
+        modal.classList.remove('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    closeCapitalTransferModal() {
+        const modal = document.getElementById('capitalTransferModal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    setCapitalTransferDirection(dir) {
+        this.capitalTransferDir = dir;
+        const btnIn = document.getElementById('btnDirTransferIn');
+        const btnOut = document.getElementById('btnDirTransferOut');
+        const lblPrompt = document.getElementById('lblCapitalAmountPrompt');
+        const btnText = document.getElementById('btnExecuteCapitalTransferText');
+
+        if (dir === 'IN') {
+            if (btnIn) {
+                btnIn.className = 'py-2.5 rounded-xl bg-emerald-600 text-white transition flex items-center justify-center gap-1.5 shadow font-bold';
+            }
+            if (btnOut) {
+                btnOut.className = 'py-2.5 rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 font-bold';
+            }
+            if (lblPrompt) lblPrompt.textContent = 'Số Tiền Bơm Vào Kho Vốn (VNĐ):';
+            if (btnText) btnText.textContent = 'Xác Nhận Bơm Vốn Vào Quỹ';
+        } else {
+            if (btnOut) {
+                btnOut.className = 'py-2.5 rounded-xl bg-amber-600 text-white transition flex items-center justify-center gap-1.5 shadow font-bold';
+            }
+            if (btnIn) {
+                btnIn.className = 'py-2.5 rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 font-bold';
+            }
+            if (lblPrompt) lblPrompt.textContent = 'Số Tiền Rút Về Ví Chính (VNĐ):';
+            if (btnText) btnText.textContent = 'Xác Nhận Rút Vốn Về Ví';
+        }
+    }
+
+    setCapitalTransferAmountQuick(percentage) {
+        if (typeof capitalManager === 'undefined') return;
+        const isTransferIn = this.capitalTransferDir === 'IN';
+        const baseAmount = isTransferIn ? this.user.availableBalance : capitalManager.treasuryBalance;
+
+        const amount = Math.floor((baseAmount * percentage) / 100);
+        const input = document.getElementById('capitalTransferAmountInput');
+        if (input) {
+            input.value = amount.toLocaleString('vi-VN');
+        }
+    }
+
+    onCapitalTransferAmountInput(val) {
+        const input = document.getElementById('capitalTransferAmountInput');
+        if (input) this.formatMoneyInput(input);
+    }
+
+    executeCapitalTransfer() {
+        if (typeof capitalManager === 'undefined') return;
+
+        const input = document.getElementById('capitalTransferAmountInput');
+        const raw = (input?.value || '').replace(/\D/g, '');
+        const amount = parseInt(raw, 10);
+
+        if (isNaN(amount) || amount <= 0) {
+            this.showToast('Vui lòng nhập số tiền hợp lệ!', 'warning');
+            return;
+        }
+
+        try {
+            if (this.capitalTransferDir === 'IN') {
+                capitalManager.transferFromMainToTreasury(amount);
+                this.showToast(`💼 Bơm vốn thành công: +${amount.toLocaleString('vi-VN')} đ vào Kho Tín Dụng!`, 'success');
+            } else {
+                capitalManager.transferFromTreasuryToMain(amount);
+                this.showToast(`💸 Rút vốn thành công: +${amount.toLocaleString('vi-VN')} đ về Ví Chính!`, 'success');
+            }
+
+            soundManager.playTingTing();
+            this.closeCapitalTransferModal();
+        } catch (e) {
+            this.showToast(e.message, 'error', 6000);
+            soundManager.playError();
         }
     }
 }
