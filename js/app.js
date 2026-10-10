@@ -2034,9 +2034,12 @@ class BankApp {
         if (typeof capitalManager === 'undefined' || !capitalManager) return;
         if (!stats) stats = capitalManager.getSummaryStats();
 
-        // 1. Cập nhật Master 4 KPI Cards
+        // 1. Cập nhật Master 4 KPI Cards & Fast Balance Display
         const kpiTreasury = document.getElementById('kpiTreasuryBalance');
         if (kpiTreasury) kpiTreasury.textContent = `${Math.round(stats.treasuryBalance).toLocaleString('vi-VN')} đ`;
+
+        const fastTreasury = document.getElementById('fastTreasuryBalance');
+        if (fastTreasury) fastTreasury.textContent = `${Math.round(stats.treasuryBalance).toLocaleString('vi-VN')} đ`;
 
         const modalTreasury = document.getElementById('modalTreasuryBalance');
         if (modalTreasury) modalTreasury.textContent = `${Math.round(stats.treasuryBalance).toLocaleString('vi-VN')} đ`;
@@ -2068,6 +2071,60 @@ class BankApp {
 
         // Cập nhật số dư ví chính trên header và các thẻ liên quan
         this.updateHeaderBalances();
+
+        // 1.1 Cập nhật Thống Kê Doanh Thu & Dòng Tiền Lợi Nhuận Realtime
+        const statRoi = document.getElementById('statRoiValue');
+        if (statRoi) statRoi.textContent = `${stats.roi || '0.00'}%`;
+
+        const statTotalLending = document.getElementById('statTotalLendingRevenue');
+        if (statTotalLending) statTotalLending.textContent = `+${Math.round(stats.totalLendingProfit || 0).toLocaleString('vi-VN')} đ`;
+
+        const statTotalCost = document.getElementById('statTotalDepositCost');
+        if (statTotalCost) statTotalCost.textContent = `-${Math.round(stats.totalDepositInterestPaid || 0).toLocaleString('vi-VN')} đ`;
+
+        const statNet = document.getElementById('statNetProfit');
+        if (statNet) {
+            const pfx = (stats.netInterestMargin || 0) >= 0 ? '+' : '';
+            statNet.textContent = `${pfx}${Math.round(stats.netInterestMargin || 0).toLocaleString('vi-VN')} đ`;
+        }
+
+        const statProj = document.getElementById('statProjectedInterest');
+        if (statProj) statProj.textContent = `+${Math.round(stats.projectedPendingInterest || 0).toLocaleString('vi-VN')} đ`;
+
+        // Cơ cấu doanh thu theo kênh
+        const statBizCount = document.getElementById('statBizLoansCount');
+        if (statBizCount) statBizCount.textContent = `${stats.businessLoansCount || 0} HĐ`;
+
+        const statBizProfit = document.getElementById('statBizLoansProfit');
+        if (statBizProfit) statBizProfit.textContent = `+${Math.round(stats.businessLoansProfit || 0).toLocaleString('vi-VN')} đ`;
+
+        const statPersonalCount = document.getElementById('statPersonalLoansCount');
+        if (statPersonalCount) statPersonalCount.textContent = `${stats.personalLoansCount || 0} HĐ`;
+
+        const statPersonalProfit = document.getElementById('statPersonalLoansProfit');
+        if (statPersonalProfit) statPersonalProfit.textContent = `+${Math.round(stats.personalLoansProfit || 0).toLocaleString('vi-VN')} đ`;
+
+        const statDepCount = document.getElementById('statDepositsCount');
+        if (statDepCount) statDepCount.textContent = `${(stats.activeDepositCount || 0) + (stats.completedDepositCount || 0)} HĐ`;
+
+        const statDepCost = document.getElementById('statDepositsCost');
+        if (statDepCost) statDepCost.textContent = `-${Math.round(stats.totalDepositInterestPaid || 0).toLocaleString('vi-VN')} đ`;
+
+        // Tổng Tài Sản Hợp Nhất & Số Dư Toàn Hệ Thống
+        const statConsolTreasury = document.getElementById('statConsolidatedTreasury');
+        if (statConsolTreasury) statConsolTreasury.textContent = `${Math.round(stats.treasuryBalance || 0).toLocaleString('vi-VN')} đ`;
+
+        const statConsolLoans = document.getElementById('statConsolidatedLoans');
+        if (statConsolLoans) statConsolLoans.textContent = `${Math.round(stats.totalActiveLoansCapital || 0).toLocaleString('vi-VN')} đ`;
+
+        const statConsolDep = document.getElementById('statConsolidatedDeposits');
+        if (statConsolDep) statConsolDep.textContent = `-${Math.round(stats.totalDepositsCapitalHeld || 0).toLocaleString('vi-VN')} đ`;
+
+        const statConsolGrand = document.getElementById('statConsolidatedGrandTotal');
+        if (statConsolGrand) {
+            const pfx = (stats.totalConsolidatedNetWorth || 0) >= 0 ? '+' : '';
+            statConsolGrand.textContent = `${pfx}${Math.round(stats.totalConsolidatedNetWorth || 0).toLocaleString('vi-VN')} đ`;
+        }
 
         // 2. Cập nhật bảng điều khiển AI Banker Auto-Pilot
         const aiBadge = document.getElementById('aiStatusBadge');
@@ -2874,6 +2931,77 @@ class BankApp {
             this.showToast(e.message, 'error', 6000);
             soundManager.playError();
         }
+    }
+
+    // ========================================================================
+    // LUÂN CHUYỂN TIỀN SIÊU TỐC VÍ CHÍNH ↔ KHO VỐN (0-CLICK FAST TRANSFER)
+    // ========================================================================
+
+    fastTransferCapital(direction, explicitAmount = null) {
+        if (typeof capitalManager === 'undefined') return;
+
+        let amount = explicitAmount;
+        if (!amount) {
+            const input = document.getElementById('fastTransferAmountInput');
+            const raw = (input?.value || '').replace(/\D/g, '');
+            amount = parseInt(raw, 10);
+        }
+
+        if (isNaN(amount) || amount <= 0) {
+            this.showToast('Vui lòng nhập hoặc chọn số tiền cần chuyển!', 'warning');
+            return;
+        }
+
+        try {
+            if (direction === 'IN') {
+                capitalManager.transferFromMainToTreasury(amount);
+                this.showToast(`⚡ Bơm vốn siêu tốc thành công: +${amount.toLocaleString('vi-VN')} đ từ Ví Chính vào Kho Tín Dụng!`, 'success');
+            } else {
+                capitalManager.transferFromTreasuryToMain(amount);
+                this.showToast(`⚡ Rút vốn siêu tốc thành công: +${amount.toLocaleString('vi-VN')} đ từ Kho Tín Dụng về Ví Chính!`, 'success');
+            }
+
+            soundManager.playTingTing();
+            const input = document.getElementById('fastTransferAmountInput');
+            if (input) input.value = '';
+
+            this.renderCapitalDesk();
+        } catch (e) {
+            this.showToast(e.message, 'error', 6000);
+            soundManager.playError();
+        }
+    }
+
+    fastTransferAll(direction) {
+        if (typeof capitalManager === 'undefined') return;
+        if (direction === 'IN') {
+            const bal = Math.floor(this.user.availableBalance);
+            if (bal <= 0) {
+                this.showToast('Số dư ví chính hiện tại không đủ để bơm vốn!', 'warning');
+                return;
+            }
+            this.fastTransferCapital('IN', bal);
+        } else {
+            const bal = Math.floor(capitalManager.treasuryBalance);
+            if (bal <= 0) {
+                this.showToast('Kho vốn khả dụng hiện đang bằng 0 đ!', 'warning');
+                return;
+            }
+            this.fastTransferCapital('OUT', bal);
+        }
+    }
+
+    setFastTransferAmount(amount) {
+        const input = document.getElementById('fastTransferAmountInput');
+        if (input) {
+            input.value = amount.toLocaleString('vi-VN');
+        }
+    }
+
+    setFastTransferPercent(percent) {
+        const bal = this.user.availableBalance || 0;
+        const amt = Math.floor((bal * percent) / 100);
+        this.setFastTransferAmount(amt);
     }
 }
 

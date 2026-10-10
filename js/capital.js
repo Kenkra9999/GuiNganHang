@@ -112,14 +112,34 @@ class CapitalManager {
         let totalRemainingPrincipalToCollect = 0;
         let totalMaturedDueAmount = 0; // Tiền gốc + lãi của các kỳ đã đến hạn mà chưa thu
         let dueInstallmentsCount = 0;
+        let projectedPendingInterest = 0; // Lãi sắp thu từ các kỳ pending
+        let businessLoansProfit = 0;
+        let personalLoansProfit = 0;
+        let businessLoansCount = 0;
+        let personalLoansCount = 0;
+        let totalDisbursedAmount = 0; // Tổng vốn đã giải ngân
 
         const now = Date.now();
 
         this.activeLoans.forEach(loan => {
             totalActiveLoansCapital += loan.amount;
+            totalDisbursedAmount += loan.amount;
+            if (loan.borrowerType === 'BUSINESS') {
+                businessLoansCount++;
+            } else {
+                personalLoansCount++;
+            }
             loan.installments.forEach(inst => {
                 if (inst.status !== 'COLLECTED') {
                     totalRemainingPrincipalToCollect += inst.principal;
+                    projectedPendingInterest += inst.interest;
+                }
+                if (inst.status === 'COLLECTED') {
+                    if (loan.borrowerType === 'BUSINESS') {
+                        businessLoansProfit += inst.interest;
+                    } else {
+                        personalLoansProfit += inst.interest;
+                    }
                 }
                 if (inst.status === 'DUE') {
                     totalMaturedDueAmount += inst.totalAmount;
@@ -128,16 +148,60 @@ class CapitalManager {
             });
         });
 
+        this.completedLoans.forEach(loan => {
+            totalDisbursedAmount += loan.amount;
+            if (loan.borrowerType === 'BUSINESS') {
+                businessLoansCount++;
+            } else {
+                personalLoansCount++;
+            }
+            loan.installments.forEach(inst => {
+                if (inst.status === 'COLLECTED') {
+                    if (loan.borrowerType === 'BUSINESS') {
+                        businessLoansProfit += inst.interest;
+                    } else {
+                        personalLoansProfit += inst.interest;
+                    }
+                }
+            });
+        });
+
         let totalDepositsCapitalHeld = 0;
+        let projectedPendingDepositInterest = 0;
+        let totalDepositsMobilized = 0;
+
         this.activeDeposits.forEach(dep => {
-            totalDepositsCapitalHeld += (dep.amount - (dep.principalReturned || 0));
+            const held = (dep.amount - (dep.principalReturned || 0));
+            totalDepositsCapitalHeld += held;
+            totalDepositsMobilized += dep.amount;
+            dep.installments.forEach(inst => {
+                if (inst.status !== 'PAID') {
+                    projectedPendingDepositInterest += inst.interest;
+                }
+            });
+        });
+
+        this.completedDeposits.forEach(dep => {
+            totalDepositsMobilized += dep.amount;
         });
 
         // Lợi nhuận ròng (Net Interest Margin = Tổng Lãi Vay Đã Thu - Tổng Lãi Đã Trả Khách)
         const netInterestMargin = this.totalLendingProfit - this.totalDepositInterestPaid;
 
+        // Số dư ví chính
+        const mainWalletBal = (typeof app !== 'undefined' && app.user) ? (Number(app.user.availableBalance) || 0) : 0;
+        // Tổng tài sản hợp nhất sàn vốn + ví chính
+        const totalConsolidatedNetWorth = mainWalletBal + this.treasuryBalance + totalActiveLoansCapital - totalDepositsCapitalHeld;
+        const totalCapitalDeskAssets = this.treasuryBalance + totalActiveLoansCapital;
+
+        // Tỷ suất sinh lời ROI (%)
+        const roi = totalDisbursedAmount > 0 ? ((this.totalLendingProfit / totalDisbursedAmount) * 100).toFixed(2) : '0.00';
+
         return {
             treasuryBalance: this.treasuryBalance,
+            mainWalletBalance: mainWalletBal,
+            totalCapitalDeskAssets,
+            totalConsolidatedNetWorth,
             totalActiveLoansCapital,
             totalRemainingPrincipalToCollect,
             totalMaturedDueAmount,
@@ -146,10 +210,22 @@ class CapitalManager {
             totalLendingProfit: this.totalLendingProfit,
             totalDepositInterestPaid: this.totalDepositInterestPaid,
             netInterestMargin,
+            projectedPendingInterest,
+            projectedPendingDepositInterest,
+            projectedNetProfit: projectedPendingInterest - projectedPendingDepositInterest,
+            totalDisbursedAmount,
+            totalDepositsMobilized,
+            businessLoansProfit,
+            personalLoansProfit,
+            businessLoansCount,
+            personalLoansCount,
+            roi,
             pendingLoanCount: this.pendingLoanRequests.length,
             pendingDepositCount: this.pendingDepositOffers.length,
             activeLoanCount: this.activeLoans.length,
             activeDepositCount: this.activeDeposits.length,
+            completedLoanCount: this.completedLoans.length,
+            completedDepositCount: this.completedDeposits.length,
             aiEnabled: this.aiConfig.enabled
         };
     }
