@@ -1,3 +1,21 @@
+// Gói Đặc Quyền Riêng Biệt: Lãi Suất Kép Liên Tục 2 Giây (Auto-Compounding)
+const COMPOUND_PACKAGE = {
+    id: 'digibank-compound',
+    code: 'DIGIBANK_VIP',
+    name: 'DigiBank Prime - Lãi Suất Kép Liên Tục (Auto-Compounding)',
+    shortName: 'DigiBank Lãi Kép 2S',
+    rate: 1.00, // 1.00% / phút
+    compoundIntervalSec: 2, // 2s tự cộng dồn vào gốc
+    color: '#f59e0b',
+    accentColor: '#10b981',
+    badge: '👑 ĐẶC QUYỀN LÃI KÉP 2S',
+    badgeColor: 'bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-black',
+    icon: 'crown',
+    minDeposit: 100000,
+    description: 'Tự động nhập lãi vào gốc mỗi 2 giây! Chu kỳ tiếp theo dùng chính gốc mới tính tiếp 1.00%/phút, lãi mẹ đẻ lãi con liên tục!',
+    tag: 'Đặc Quyền VIP'
+};
+
 // Danh sách 20 Ngân hàng uy tín tại Việt Nam với lãi suất gửi tiết kiệm theo phút (0.70% - 1.20%/phút)
 const BANKS_DATA = [
     {
@@ -303,15 +321,32 @@ const BANKS_DATA = [
 ];
 
 // Cấu hình Hệ thống Ví Trung Tâm (Core Wallet) & Socket Server
+const isHttp = typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http');
 const CORE_WALLET_CONFIG = {
     // Tự động nhận diện host hiện tại hoặc dùng URL tùy chỉnh
-    apiUrl: window.location.origin ? `${window.location.origin}/api/v1` : 'http://localhost:8989/api/v1',
-    socketUrl: window.location.origin || 'http://localhost:8989',
+    apiUrl: isHttp ? `${window.location.origin}/api/v1` : 'http://localhost:8989/api/v1',
+    socketUrl: isHttp ? window.location.origin : 'http://localhost:8989',
     appSecretToken: 'APP_SECRET_TOKEN_DIGIBANK_VIP_2026'
 };
 
-// Danh sách tài khoản mẫu trong Hệ Sinh Thái Liên Website
+// Danh sách tài khoản mẫu trong Hệ Sinh Thái Liên Website & Liên Ứng Dụng
 const ECOSYSTEM_ACCOUNTS = [
+    {
+        stk: 'OKX520061041',
+        owner_name: 'OKX Futures Pro Trader',
+        origin_web: 'OKX Futures Trading (Crypto)',
+        web_code: 'OKX',
+        icon: 'trending-up',
+        badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+    },
+    {
+        stk: 'BINANCE888',
+        owner_name: 'Binance VIP Wallet',
+        origin_web: 'Binance Exchange (Crypto)',
+        web_code: 'BNB',
+        icon: 'coins',
+        badgeColor: 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+    },
     {
         stk: 'W01829102948',
         owner_name: 'Tran Thi Shop',

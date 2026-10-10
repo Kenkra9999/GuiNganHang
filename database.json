@@ -4,7 +4,7 @@
       "stk": "W03889968688",
       "owner_name": "NGUYEN VAN A",
       "origin_web": "DigiBank Prime (Web Ngân Hàng)",
-      "balance": 0.472210556268692,
+      "balance": 0,
       "currency": "VND",
       "status": "ACTIVE"
     },
@@ -12,7 +12,7 @@
       "stk": "W01829102948",
       "owner_name": "Tran Thi Shop",
       "origin_web": "Web Shop E-Commerce",
-      "balance": 50100000,
+      "balance": 49650000,
       "currency": "VND",
       "status": "ACTIVE"
     },

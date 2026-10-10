@@ -1,4 +1,4 @@
-// Quản lý chuyển tiền Liên Website (Core Wallet API), Napas 247, lịch sử giao dịch và nạp tiền
+// Quản lý chuyển tiền Liên Website (Core Wallet API), Napas 247, Lịch sử giao dịch và Nạp/Rút Tiền qua Payment Gateway Hub
 class TransferManager {
     constructor() {
         this.transactions = [];
@@ -21,7 +21,7 @@ class TransferManager {
                     id: 'TXN-' + Math.floor(100000 + Math.random() * 900000),
                     type: 'TOPUP',
                     title: 'Nạp tiền vào tài khoản khởi tạo',
-                    description: 'Hệ thống cấp vốn trải nghiệm VIP',
+                    description: 'Hệ thống cấp vốn trải nghiệm VIP (DigiBank Prime)',
                     amount: 100000000,
                     fee: 0,
                     sender: 'DIGIBANK SYSTEM',
@@ -50,6 +50,16 @@ class TransferManager {
         return newTx;
     }
 
+    updateTransactionStatus(txId, status, note = '') {
+        const tx = this.transactions.find(t => t.id === txId || t.referenceCode === txId);
+        if (tx) {
+            tx.status = status;
+            if (note) tx.statusNote = note;
+            this.saveTransactions();
+        }
+        return tx;
+    }
+
     getTransactions(filter = 'ALL', search = '') {
         return this.transactions.filter(tx => {
             const matchesFilter = (filter === 'ALL') 
@@ -71,7 +81,7 @@ class TransferManager {
     }
 
     // ========================================================================
-    // 2.1. API TRA CỨU SỐ TÀI KHOẢN LIÊN WEBSITE (GET /api/v1/accounts/lookup)
+    // 1. API TRA CỨU SỐ TÀI KHOẢN LIÊN WEBSITE (GET /api/v1/accounts/lookup)
     // ========================================================================
     async lookupAccount(stk) {
         const normalizedStk = String(stk || '').trim().toUpperCase();
@@ -112,7 +122,7 @@ class TransferManager {
     }
 
     // ========================================================================
-    // 2.2. API THỰC THI CHUYỂN TIỀN LIÊN WEBSITE (POST /api/v1/transfer)
+    // 2. API THỰC THI CHUYỂN TIỀN LIÊN WEBSITE (POST /api/v1/transfer)
     // ========================================================================
     async executeCrossWebTransfer(user, receiverStk, amount, note) {
         const normalizedReceiverStk = String(receiverStk || '').trim().toUpperCase();
@@ -131,7 +141,7 @@ class TransferManager {
         }
 
         if (amount > user.availableBalance) {
-            const savingsStats = savingsManager ? savingsManager.calculateGlobalStats() : { totalPrincipalLocked: 0 };
+            const savingsStats = (typeof savingsManager !== 'undefined' && savingsManager) ? savingsManager.calculateGlobalStats() : { totalPrincipalLocked: 0 };
             let errMsg = `Số dư khả dụng của bạn (${user.availableBalance.toLocaleString('vi-VN')} đ) không đủ để chuyển ${amount.toLocaleString('vi-VN')} đ.`;
             if (savingsStats.totalPrincipalLocked > 0) {
                 errMsg += `\n\n💡 Bạn hiện đang có ${savingsStats.totalPrincipalLocked.toLocaleString('vi-VN')} đ gửi trong sổ tiết kiệm. Hãy bấm "Rút tiền tiết kiệm" để chuyển số tiền đó về tài khoản khả dụng trước khi chuyển đi nhé!`;
@@ -202,8 +212,12 @@ class TransferManager {
             sender: user.accountName,
             amount: -amount,
             fee: 0,
-            referenceCode: resultData.transaction_id || ('TX_' + Date.now())
+            referenceCode: resultData.transaction_id || ('TX_' + Date.now()),
+            status: 'SUCCESS'
         });
+
+        // Đồng bộ số dư
+        this.syncBalanceToCoreWallet(user.accountNumber, user.availableBalance);
 
         return {
             ...resultData,
@@ -212,7 +226,7 @@ class TransferManager {
     }
 
     // ========================================================================
-    // XỬ LÝ SỰ KIỆN REALTIME NHẬN ĐƯỢC TIỀN TỪ SOCKET.IO (EVENT_MONEY_RECEIVED)
+    // 3. XỬ LÝ SỰ KIỆN REALTIME NHẬN ĐƯỢC TIỀN TỪ SOCKET.IO (EVENT_MONEY_RECEIVED)
     // ========================================================================
     handleIncomingMoney(user, payload) {
         const amount = Number(payload.amount || 0);
@@ -237,20 +251,22 @@ class TransferManager {
             sender: `${payload.sender_name || 'Hệ Thống'} (${payload.sender_stk || 'N/A'})`,
             amount: amount,
             fee: 0,
-            referenceCode: payload.transaction_id || ('TX_' + Date.now())
+            referenceCode: payload.transaction_id || ('TX_' + Date.now()),
+            status: 'SUCCESS'
         });
 
+        this.syncBalanceToCoreWallet(user.accountNumber, user.availableBalance);
         return tx;
     }
 
     // ========================================================================
-    // CHUYỂN KHOẢN NAPAS 24/7 (20 NGÂN HÀNG TRUYỀN THỐNG)
+    // 4. CHUYỂN KHOẢN NAPAS 24/7 (20 NGÂN HÀNG TRUYỀN THỐNG)
     // ========================================================================
     executeTransfer(user, targetBankId, accountNumber, recipientName, amount, message) {
-        const targetBank = BANKS_DATA.find(b => b.id === targetBankId) || {
+        const targetBank = (typeof BANKS_DATA !== 'undefined' && BANKS_DATA.find(b => b.id === targetBankId || b.code === targetBankId)) || {
             name: 'Ngân hàng thụ hưởng',
-            shortName: targetBankId.toUpperCase(),
-            code: targetBankId.toUpperCase()
+            shortName: String(targetBankId).toUpperCase(),
+            code: String(targetBankId).toUpperCase()
         };
 
         if (amount <= 0) {
@@ -258,7 +274,7 @@ class TransferManager {
         }
 
         if (amount > user.availableBalance) {
-            const savingsStats = savingsManager ? savingsManager.calculateGlobalStats() : { totalPrincipalLocked: 0 };
+            const savingsStats = (typeof savingsManager !== 'undefined' && savingsManager) ? savingsManager.calculateGlobalStats() : { totalPrincipalLocked: 0 };
             let errMsg = `Số dư khả dụng của bạn (${user.availableBalance.toLocaleString('vi-VN')} đ) không đủ để chuyển ${amount.toLocaleString('vi-VN')} đ.`;
             if (savingsStats.totalPrincipalLocked > 0) {
                 errMsg += `\n\n💡 Bạn hiện đang có ${savingsStats.totalPrincipalLocked.toLocaleString('vi-VN')} đ gửi trong sổ tiết kiệm. Hãy bấm "Rút tiền tiết kiệm" để chuyển số tiền đó về tài khoản khả dụng trước khi chuyển đi nhé!`;
@@ -280,7 +296,8 @@ class TransferManager {
             sender: user.accountName,
             amount: -amount,
             fee: 0,
-            referenceCode: 'FT' + Date.now().toString().substring(3)
+            referenceCode: 'FT' + Date.now().toString().substring(3),
+            status: 'SUCCESS'
         });
 
         // Đồng bộ số dư lên server Core Wallet nếu có
@@ -289,35 +306,81 @@ class TransferManager {
         return tx;
     }
 
-    // Nạp tiền demo nhanh
-    topUp(user, amount, note = 'Nạp tiền trải nghiệm nhanh') {
-        if (amount <= 0) throw new Error("Số tiền nạp không hợp lệ!");
+    // ========================================================================
+    // 5. XỬ LÝ NẠP TIỀN THÀNH CÔNG TỪ VIETQR HUB (PAYMENT_SUCCESS)
+    // ========================================================================
+    handlePaymentSuccess(user, result) {
+        const amount = Number(result.amount || 0);
+        if (amount <= 0) return null;
+
         user.availableBalance += amount;
 
         const tx = this.addTransaction({
             type: 'TOPUP',
-            title: 'Nạp tiền vào tài khoản',
-            description: note,
+            title: `Nạp tiền VietQR (${result.transferCode || result.memo || 'VIETQR 24/7'})`,
+            description: `Nạp tiền tự động qua Cổng Thanh Toán Trung Tâm VietQR EMVCo`,
+            bankName: result.bankName || 'Cổng Hub VietQR',
             amount: amount,
             fee: 0,
-            sender: 'CỔNG THANH TOÁN TỰ ĐỘNG',
+            sender: `CỔNG VIETQR HUB (${result.bankName || 'NAPAS 24/7'})`,
             recipient: user.accountName,
-            referenceCode: 'TOP' + Date.now().toString().substring(4)
+            referenceCode: result.transactionId || result.orderId || ('PAY_' + Date.now()),
+            status: 'SUCCESS'
         });
 
         this.syncBalanceToCoreWallet(user.accountNumber, user.availableBalance);
-
         return tx;
+    }
+
+    // ========================================================================
+    // 6. XỬ LÝ KẾT QUẢ RÚT TIỀN (PAYOUT_COMPLETED / PAYOUT_REJECTED)
+    // ========================================================================
+    handlePayoutCompleted(user, payout) {
+        console.log('[TransferManager] Xác nhận Payout thành công:', payout);
+        const refCode = payout.transactionId || payout.payoutId || payout.orderId;
+        if (refCode) {
+            this.updateTransactionStatus(refCode, 'SUCCESS', 'Đã hoàn tất chuyển tiền Napas 24/7');
+        }
+    }
+
+    handlePayoutRejected(user, payout) {
+        console.warn('[TransferManager] Payout bị từ chối, hoàn tiền lại cho user:', payout);
+        const amount = Number(payout.amount || 0);
+        if (amount > 0) {
+            user.availableBalance += amount;
+        }
+
+        const refCode = payout.transactionId || payout.payoutId || payout.orderId;
+        if (refCode) {
+            this.updateTransactionStatus(refCode, 'REJECTED', payout.reason || 'Lệnh rút tiền bị từ chối bởi Hub');
+        }
+
+        // Ghi thêm dòng hoàn tiền
+        this.addTransaction({
+            type: 'TOPUP',
+            title: `Hoàn tiền rút không thành công`,
+            description: `Hoàn tiền do lệnh rút tiền bị từ chối: ${payout.reason || 'Lỗi xử lý'}`,
+            amount: amount,
+            fee: 0,
+            sender: 'HỆ THỐNG HOÀN TIỀN',
+            recipient: user.accountName,
+            referenceCode: 'REF_' + Date.now().toString().substring(4),
+            status: 'SUCCESS'
+        });
+
+        this.syncBalanceToCoreWallet(user.accountNumber, user.availableBalance);
     }
 
     // Đồng bộ số dư lên server Core Wallet
     async syncBalanceToCoreWallet(stk, balance) {
         try {
-            await fetch(`${CORE_WALLET_CONFIG.apiUrl}/accounts/sync-balance`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stk, balance })
-            });
+            if (typeof CORE_WALLET_CONFIG !== 'undefined' && CORE_WALLET_CONFIG.apiUrl) {
+                await fetch(`${CORE_WALLET_CONFIG.apiUrl}/accounts/sync-balance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ stk, balance })
+                });
+            }
         } catch (e) {
             // silent fail
         }

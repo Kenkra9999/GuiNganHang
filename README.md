@@ -142,16 +142,43 @@ Sau đó truy cập: `http://localhost:8989` trên trình duyệt.
 
 ---
 
+---
+
+## 🎯 TÍCH HỢP CỔNG THANH TOÁN & WEBHOOK HUB TRUNG TÂM (PORT 9000)
+
+Dự án DigiBank Prime 4.0 đã được tích hợp toàn diện với **Cổng Thanh Toán & Webhook Hub Trung Tâm** (`http://localhost:9000`):
+
+### 1. Nạp Tiền VietQR Realtime Động (EMVCo):
+- **SDK**: Khởi tạo `PaymentSDK.init({ hubUrl: 'http://localhost:9000', appId: 'NGAN_HANG_APP' })`.
+- **Mở Modal VietQR**: Gọi `PaymentSDK.openDepositModal({ amount, userId, memoPrefix: 'NAP', onPaid: (res) => { ... } })`.
+- **REST API tạo đơn nạp**: `POST http://localhost:9000/api/v1/deposit/create` với `{ appId, userId, amount, memoPrefix }`.
+- **Socket.io Realtime**: Lắng nghe `PAYMENT_SUCCESS` từ Hub để tự động cộng số dư ngay lập tức mà không cần tải lại trang.
+
+### 2. Rút Tiền & Chuyển Khoản Napas 24/7:
+- **Lấy danh sách ngân hàng**: `GET http://localhost:9000/api/v1/banks` (hoặc `PaymentSDK.getBanks()`).
+- **Tự động tra cứu tên chủ tài khoản thật**: `POST http://localhost:9000/api/v1/banks/lookup` với `{ bankCode, accountNumber }`. Tự động điền và xác thực tên người nhận.
+- **Gửi lệnh Rút Tiền Payout**: `POST http://localhost:9000/api/v1/payout/request` với `{ appId, userId, bankCode, accountNumber, accountName, amount, memo }`.
+- **Lắng nghe kết quả duyệt qua Socket.io**:
+  - `PAYOUT_COMPLETED`: Xác nhận giao dịch thành công.
+  - `PAYOUT_REJECTED`: Tự động hoàn lại số dư cho người dùng nếu bị từ chối.
+
+---
+
 ## 📁 CẤU TRÚC THƯ MỤC
 ```
 GuiNganHang/
 ├── index.html              # Giao diện chính Single Page Application Neobank VIP
-├── server.js               # Core Wallet Server (Express + Socket.io + REST API + Idempotency)
+├── server.js               # Core Wallet Server (Express + Socket.io + REST API + Webhooks)
 ├── database.json           # Cơ sở dữ liệu tài khoản & giao dịch Core Wallet
-├── CHAY-NGAN-HANG.bat      # Script khởi chạy hệ thống 1-click
+├── DigiBank-Launcher.vbs   # Smart Launcher chạy ngầm tự động bật server và mở web
+├── CHAY-NGAN-HANG.bat      # Script khởi chạy hệ thống (kiểm tra server sẵn sàng trước khi mở web)
+├── DUNG-NGAN-HANG.bat      # Script dừng toàn bộ server ngầm khi cần
+├── CAI-DAT-TU-DONG-KHOI-DONG.bat  # Tùy chọn tự bật server ngầm khi bật máy tính
+├── GO-BO-TU-DONG-KHOI-DONG.bat    # Gỡ bỏ tự bật khi khởi động Windows
 ├── css/
 │   └── style.css           # Hiệu ứng Glassmorphism, animations, gradient neobank
 ├── js/
+│   ├── payment-sdk.js      # Universal Payment Gateway Hub SDK (VietQR & Napas 24/7)
 │   ├── data.js             # Dữ liệu tài khoản hệ sinh thái, 20 ngân hàng, cấu hình API
 │   ├── audio.js            # Âm thanh ngân hàng bằng Web Audio API
 │   ├── savings.js          # Cỗ máy tính lãi suất Realtime theo phút (0.7% - 1.2%)
@@ -160,3 +187,5 @@ GuiNganHang/
 │   └── app.js              # Bộ điều khiển trung tâm kết nối toàn bộ hệ thống & Socket.io
 └── README.md               # Tài liệu đặc tả kỹ thuật & hướng dẫn chi tiết
 ```
+
+

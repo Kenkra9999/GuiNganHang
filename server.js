@@ -423,57 +423,118 @@ app.post('/api/v1/accounts/sync-balance', (req, res) => {
     res.status(404).json({ status: 'ERROR', message: 'Không tìm thấy tài khoản' });
 });
 
-// Giả lập một website con (ví dụ Web Shop W01 hoặc Web Game W02) gửi tiền vào DigiBank
-app.post('/api/v1/simulate-incoming-transfer', (req, res) => {
-    const { sender_stk = 'W01829102948', receiver_stk = 'W03889968688', amount = 50000, note = 'Thuong thang / Ban do Game' } = req.body;
-    
-    const sender = db.accounts.find(a => a.stk === sender_stk);
-    const receiver = db.accounts.find(a => a.stk === receiver_stk);
 
-    if (!sender || !receiver) {
-        return res.status(404).json({ status: 'ERROR', message: 'Tài khoản không tồn tại' });
-    }
+// ============================================================================
+// WEBHOOK RECEIVERS CHO PAYMENT GATEWAY HUB (http://localhost:9000)
+// ============================================================================
 
-    const numAmount = Number(amount);
-    receiver.balance += numAmount;
-    if (sender.balance >= numAmount) sender.balance -= numAmount;
+// Webhook nhận thông báo nạp tiền thành công từ Hub
+app.post('/api/v1/webhook/payment', (req, res) => {
+    try {
+        const { appId, userId, amount, orderId, memo, bankName, transactionId } = req.body;
+        console.log('[Webhook Hub] 🔔 Nhận thông báo thanh toán:', req.body);
 
-    const transactionId = 'TX_SIM_' + Date.now();
-    const timestamp = Date.now();
+        const targetStk = (userId && typeof userId === 'string' && userId.startsWith('W')) ? userId.toUpperCase() : 'W03889968688';
+        const numAmount = Number(amount || 0);
 
-    saveDb();
-
-    // Bắn socket realtime tới phòng STK người nhận
-    io.to(receiver_stk).emit('EVENT_MONEY_RECEIVED', {
-        amount: numAmount,
-        sender_stk: sender.stk,
-        sender_name: sender.owner_name,
-        sender_web: sender.origin_web,
-        new_balance: receiver.balance,
-        message: `Bạn vừa nhận được ${numAmount.toLocaleString('vi-VN')} đ từ ${sender.owner_name} (STK: ${sender.stk})`,
-        note: note,
-        transaction_id: transactionId,
-        timestamp: timestamp
-    });
-
-    res.json({
-        status: 'SUCCESS',
-        message: `Đã mô phỏng chuyển tiền từ ${sender.owner_name} (${sender.origin_web}) tới ${receiver.owner_name}`,
-        data: {
-            transaction_id: transactionId,
-            amount: numAmount,
-            receiver_new_balance: receiver.balance
+        let account = db.accounts.find(a => a.stk === targetStk);
+        if (!account && db.accounts.length > 0) {
+            account = db.accounts[0];
         }
-    });
+
+        if (account && numAmount > 0) {
+            account.balance += numAmount;
+
+            const txId = transactionId || orderId || ('TX_HUB_' + Date.now());
+            const txRecord = {
+                transaction_id: txId,
+                request_id: orderId || txId,
+                sender_stk: memo || 'VIETQR_HUB',
+                sender_name: `CỔNG THANH TOÁN HUB (${bankName || 'NAPAS 24/7'})`,
+                sender_web: 'Central Gateway Hub (9000)',
+                receiver_stk: account.stk,
+                receiver_name: account.owner_name,
+                receiver_web: account.origin_web,
+                amount: numAmount,
+                note: memo || 'Nạp tiền VietQR Realtime',
+                sender_balance_after: 0,
+                receiver_balance_after: account.balance,
+                timestamp: Date.now()
+            };
+
+            db.transactions.unshift(txRecord);
+            saveDb();
+
+            // Phát Socket.io realtime tới client
+            io.to(account.stk).emit('EVENT_MONEY_RECEIVED', {
+                amount: numAmount,
+                sender_stk: memo || 'VIETQR_HUB',
+                sender_name: `CỔNG THANH TOÁN HUB (${bankName || 'NAPAS 24/7'})`,
+                sender_web: 'Central Gateway Hub (9000)',
+                new_balance: account.balance,
+                message: `Bạn vừa nhận được ${numAmount.toLocaleString('vi-VN')} đ từ Cổng VietQR Hub`,
+                note: memo || 'Nạp tiền VietQR',
+                transaction_id: txId,
+                timestamp: Date.now()
+            });
+
+            io.emit('PAYMENT_SUCCESS', {
+                orderId: orderId,
+                amount: numAmount,
+                memo: memo,
+                appId: appId || 'NGAN_HANG_APP',
+                userId: targetStk,
+                bankName: bankName,
+                transactionId: txId,
+                timestamp: Date.now()
+            });
+        }
+
+        return res.json({ status: 'SUCCESS', message: 'Webhook đã được xử lý' });
+    } catch (err) {
+        console.error('[Webhook Hub Error]:', err.message);
+        return res.status(500).json({ status: 'ERROR', message: err.message });
+    }
 });
 
-// Reset toàn bộ tài khoản về trạng thái ban đầu
-app.post('/api/v1/accounts/reset', (req, res) => {
-    db.accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-    db.transactions = [];
-    db.processedRequests = {};
-    saveDb();
-    res.json({ status: 'SUCCESS', message: 'Đã reset toàn bộ database về mặc định' });
+// Webhook nhận thông báo cập nhật kết quả rút tiền từ Hub
+app.post('/api/v1/webhook/payout', (req, res) => {
+    try {
+        const { appId, userId, amount, transactionId, status, reason } = req.body;
+        console.log('[Webhook Hub] 💳 Nhận thông báo cập nhật Payout:', req.body);
+
+        if (status === 'COMPLETED' || status === 'SUCCESS') {
+            io.emit('PAYOUT_COMPLETED', {
+                transactionId,
+                amount,
+                userId,
+                appId,
+                status: 'SUCCESS'
+            });
+        } else if (status === 'REJECTED' || status === 'FAILED') {
+            const targetStk = (userId && typeof userId === 'string' && userId.startsWith('W')) ? userId.toUpperCase() : 'W03889968688';
+            const numAmount = Number(amount || 0);
+
+            const account = db.accounts.find(a => a.stk === targetStk);
+            if (account && numAmount > 0) {
+                account.balance += numAmount; // Hoàn tiền lại cho user
+                saveDb();
+            }
+
+            io.emit('PAYOUT_REJECTED', {
+                transactionId,
+                amount: numAmount,
+                userId: targetStk,
+                appId,
+                reason: reason || 'Lệnh rút tiền bị từ chối bởi Hub'
+            });
+        }
+
+        return res.json({ status: 'SUCCESS', message: 'Payout webhook đã được xử lý' });
+    } catch (err) {
+        console.error('[Webhook Hub Payout Error]:', err.message);
+        return res.status(500).json({ status: 'ERROR', message: err.message });
+    }
 });
 
 // Xử lý lỗi không đồng bộ & giữ tiến trình sống ổn định
